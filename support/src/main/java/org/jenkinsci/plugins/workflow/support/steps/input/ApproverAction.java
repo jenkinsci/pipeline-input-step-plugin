@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2014 Jesse Glick.
+ * Copyright (c) 2013-2014, CloudBees, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,22 +22,40 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow.steps;
+package org.jenkinsci.plugins.workflow.support.steps.input;
 
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.junit.Test;
-import org.junit.Rule;
-import org.jvnet.hudson.test.JenkinsRule;
+import hudson.model.InvisibleAction;
+import hudson.model.User;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.stapler.export.Exported;
+import org.kohsuke.stapler.export.ExportedBean;
 
-public class PwdStepTest {
+import javax.annotation.Nonnull;
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+/**
+ * @author Valentina Armenise
+ */
 
-    @Test public void basics() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node {echo \"cwd=${pwd()}\"}", true));
-        r.assertLogContains("cwd=" + r.jenkins.getWorkspaceFor(p), r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+@ExportedBean
+public class ApproverAction extends InvisibleAction {
+
+    public ApproverAction(String userId) {
+        this.userId = userId;
     }
+
+    @Nonnull
+    final private String userId;
+
+    @Exported
+    public String getUserId() {
+        return userId;
+    }
+
+    @Restricted(DoNotUse.class)
+    public String getUserName() {
+        return User.get(userId).getDisplayName();
+    }
+
 
 }

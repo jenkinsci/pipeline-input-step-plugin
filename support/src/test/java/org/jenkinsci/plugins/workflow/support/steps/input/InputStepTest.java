@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2014 Jesse Glick.
+ * Copyright 2015 Jesse Glick.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,22 +22,37 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow.steps;
+package org.jenkinsci.plugins.workflow.support.steps.input;
 
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import java.util.Collections;
+import org.jenkinsci.plugins.workflow.steps.StepConfigTester;
+import org.jenkinsci.plugins.workflow.structs.DescribableHelper;
 import org.junit.Test;
+import static org.junit.Assert.*;
 import org.junit.Rule;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.WithoutJenkins;
 
-public class PwdStepTest {
-
+public class InputStepTest {
+    
     @Rule public JenkinsRule r = new JenkinsRule();
 
-    @Test public void basics() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node {echo \"cwd=${pwd()}\"}", true));
-        r.assertLogContains("cwd=" + r.jenkins.getWorkspaceFor(p), r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    @Test public void configRoundTrip() throws Exception {
+        InputStep s1 = new InputStep("hello world");
+        InputStep s2 = new StepConfigTester(r).configRoundTrip(s1);
+        assertEquals(s1.getMessage(), s2.getMessage());
+        assertEquals(s1.getId(), s2.getId());
+        assertEquals(s1.getParameters(), s2.getParameters());
+        assertEquals(s1.getOk(), s2.getOk());
+        assertEquals(s1.getSubmitter(), s2.getSubmitter());
+    }
+
+    @Issue("JENKINS-25779")
+    @WithoutJenkins
+    @Test public void uninstantiate() throws Exception {
+        InputStep s = new InputStep("hello world");
+        assertEquals(Collections.singletonMap("message", s.getMessage()), DescribableHelper.uninstantiate(s));
     }
 
 }
