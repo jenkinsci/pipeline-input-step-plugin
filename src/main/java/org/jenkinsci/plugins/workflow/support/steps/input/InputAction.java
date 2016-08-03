@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
@@ -62,8 +63,8 @@ public class InputAction implements RunAction2 {
                 }
             }
             if (execution != null) {
-                // TODO JENKINS-37154 we would rather not block here
-                for (StepExecution se : execution.getCurrentExecutions(true).get()) {
+                // JENKINS-37154 sometimes we must block here in order to get accurate results
+                for (StepExecution se : execution.getCurrentExecutions(true).get(1, TimeUnit.MINUTES)) {
                     if (se instanceof InputStepExecution) {
                         InputStepExecution ise = (InputStepExecution) se;
                         if (ids.contains(ise.getId())) {
