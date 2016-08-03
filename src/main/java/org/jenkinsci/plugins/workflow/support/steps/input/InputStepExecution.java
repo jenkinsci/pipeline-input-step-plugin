@@ -158,9 +158,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
 
         outcome = new Outcome(v, null);
-        getContext().onSuccess(v);
-
         postSettlement();
+        getContext().onSuccess(v);
 
         // TODO: record this decision to FlowNode
 
@@ -186,9 +185,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
         FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
         outcome = new Outcome(null,e);
-        getContext().onFailure(e);
-
         postSettlement();
+        getContext().onFailure(e);
 
         // TODO: record this decision to FlowNode
 
