@@ -23,6 +23,10 @@ public class InputAction implements RunAction2 {
 
     private static final Logger LOGGER = Logger.getLogger(InputAction.class.getName());
 
+    /** JENKINS-37154: number of seconds to block in {@link #loadExecutions} before we give up */
+    @SuppressWarnings("FieldMayBeFinal")
+    private static /* not final */ int LOAD_EXECUTIONS_TIMEOUT = Integer.getInteger(InputAction.class.getName() + ".LOAD_EXECUTIONS_TIMEOUT", 10);
+
     private transient List<InputStepExecution> executions = new ArrayList<InputStepExecution>();
     @SuppressFBWarnings(value="IS2_INCONSISTENT_SYNC", justification="CopyOnWriteArrayList")
     private List<String> ids = new CopyOnWriteArrayList<String>();
@@ -64,7 +68,7 @@ public class InputAction implements RunAction2 {
             }
             if (execution != null) {
                 // JENKINS-37154 sometimes we must block here in order to get accurate results
-                for (StepExecution se : execution.getCurrentExecutions(true).get(1, TimeUnit.MINUTES)) {
+                for (StepExecution se : execution.getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS)) {
                     if (se instanceof InputStepExecution) {
                         InputStepExecution ise = (InputStepExecution) se;
                         if (ids.contains(ise.getId())) {
