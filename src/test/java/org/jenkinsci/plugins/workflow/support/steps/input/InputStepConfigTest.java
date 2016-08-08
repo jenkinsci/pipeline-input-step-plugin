@@ -33,7 +33,6 @@ import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.WithoutJenkins;
 
 public class InputStepConfigTest {
     
@@ -50,7 +49,6 @@ public class InputStepConfigTest {
     }
 
     @Issue("JENKINS-25779")
-    @WithoutJenkins
     @Test public void uninstantiate() throws Exception {
         InputStep s = new InputStep("hello world");
         assertEquals(Collections.singletonMap("message", s.getMessage()), DescribableModel.uninstantiate_(s));
