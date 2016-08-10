@@ -45,14 +45,14 @@ public class InputAction implements RunAction2 {
         this.run = r;
     }
 
-    public synchronized Map<String, InputPromptDefinition> getInputDefinitions() throws InterruptedException, TimeoutException{
+    public synchronized Map<String, InputPromptDefinition> getInputDefinitions() {
         if (inputDefinitions == null) {
             loadExecutions(); // Synchronized
         }
         return inputDefinitions;
     }
 
-    public InputPromptDefinition getInputDefinition(@QueryParameter String id) throws InterruptedException, TimeoutException {
+    public InputPromptDefinition getInputDefinition(@QueryParameter String id) {
         return getInputDefinitions().get(id);
     }
 
@@ -79,12 +79,15 @@ public class InputAction implements RunAction2 {
     @SuppressFBWarnings(value="EC_UNRELATED_TYPES_USING_POINTER_EQUALITY", justification="WorkflowRun implements Queue.Executable")
     private synchronized void loadExecutions() throws InterruptedException, TimeoutException {
         if (executions == null) {
+<<<<<<< HEAD
             boolean needsSave = false;
             executions = new ArrayList<InputStepExecution>();
             if (inputDefinitions == null) {
                 inputDefinitions = new HashMap<String, InputPromptDefinition>();
                 needsSave = true;
             }
+=======
+>>>>>>> jglick/timeout-JENKINS-37154
             try {
             FlowExecution execution = null;
             for (FlowExecution _execution : FlowExecutionList.get()) {
