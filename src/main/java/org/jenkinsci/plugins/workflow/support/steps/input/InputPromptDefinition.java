@@ -17,7 +17,6 @@ public class InputPromptDefinition {
 
     private String submitter;
 
-
     private List<ParameterDefinition> parameters = Collections.emptyList();
 
     private String ok;
