@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.util.Timer;
@@ -229,7 +230,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         try {
             getPauseAction().remove(this);
             run.save();
-        } catch (IOException x) {
+        } catch (IOException | InterruptedException | TimeoutException x) {
             LOGGER.log(Level.WARNING, "failed to remove InputAction from " + run, x);
         } finally {
             if (node != null) {

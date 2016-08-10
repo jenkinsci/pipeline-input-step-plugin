@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
@@ -76,7 +77,7 @@ public class InputAction implements RunAction2 {
     }
 
     @SuppressFBWarnings(value="EC_UNRELATED_TYPES_USING_POINTER_EQUALITY", justification="WorkflowRun implements Queue.Executable")
-    private synchronized void loadExecutions() {
+    private synchronized void loadExecutions() throws InterruptedException, TimeoutException {
         if (executions == null) {
             boolean needsSave = false;
             executions = new ArrayList<InputStepExecution>();
@@ -93,8 +94,10 @@ public class InputAction implements RunAction2 {
                 }
             }
             if (execution != null) {
+                List<StepExecution> candidateExecutions = execution.getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS);
+                executions = new ArrayList<>(); // only set this if we know the answer
                 // JENKINS-37154 sometimes we must block here in order to get accurate results
-                for (StepExecution se : execution.getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS)) {
+                for (StepExecution se : candidateExecutions) {
                     if (se instanceof InputStepExecution) {
                         InputStepExecution ise = (InputStepExecution) se;
                         if (ids.contains(ise.getId())) {
@@ -112,6 +115,8 @@ public class InputAction implements RunAction2 {
             } else {
                 LOGGER.log(Level.WARNING, "no flow execution found for {0}", run);
             }
+            } catch (InterruptedException | TimeoutException x) {
+                throw x;
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, null, x);
             }
@@ -145,7 +150,7 @@ public class InputAction implements RunAction2 {
         return "input";
     }
 
-    public synchronized void add(@Nonnull InputStepExecution step) throws IOException {
+    public synchronized void add(@Nonnull InputStepExecution step) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
         this.executions.add(step);
         ids.add(step.getId());
@@ -153,7 +158,7 @@ public class InputAction implements RunAction2 {
         run.save();
     }
 
-    public synchronized InputStepExecution getExecution(String id) {
+    public synchronized InputStepExecution getExecution(String id) throws InterruptedException, TimeoutException {
         loadExecutions();
         for (InputStepExecution e : executions) {
             if (e.input.getId().equals(id))
@@ -162,7 +167,7 @@ public class InputAction implements RunAction2 {
         return null;
     }
 
-    public synchronized List<InputStepExecution> getExecutions() {
+    public synchronized List<InputStepExecution> getExecutions() throws InterruptedException, TimeoutException {
         loadExecutions();
         return new ArrayList<InputStepExecution>(executions);
     }
@@ -170,7 +175,7 @@ public class InputAction implements RunAction2 {
     /**
      * Called when {@link InputStepExecution} is completed to remove it from the active input list.
      */
-    public synchronized void remove(InputStepExecution exec) throws IOException {
+    public synchronized void remove(InputStepExecution exec) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
         executions.remove(exec);
         ids.remove(exec.getId());
@@ -181,7 +186,7 @@ public class InputAction implements RunAction2 {
     /**
      * Bind steps just by their ID names.
      */
-    public InputStepExecution getDynamic(String token) {
+    public InputStepExecution getDynamic(String token) throws InterruptedException, TimeoutException {
         return getExecution(token);
     }
 }
