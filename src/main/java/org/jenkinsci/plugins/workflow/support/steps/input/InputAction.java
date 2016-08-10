@@ -6,18 +6,18 @@ import jenkins.model.RunAction2;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.kohsuke.stapler.QueryParameter;
 
 /**
  * Records the pending inputs required.
@@ -28,7 +28,7 @@ public class InputAction implements RunAction2 {
 
     /** JENKINS-37154: number of seconds to block in {@link #loadExecutions} before we give up */
     @SuppressWarnings("FieldMayBeFinal")
-    private static /* not final */ int LOAD_EXECUTIONS_TIMEOUT = Integer.getInteger(InputAction.class.getName() + ".LOAD_EXECUTIONS_TIMEOUT", 10);
+    private static /* not final */ int LOAD_EXECUTIONS_TIMEOUT = Integer.getInteger(InputAction.class.getName() + ".LOAD_EXECUTIONS_TIMEOUT", 60);
 
     private transient List<InputStepExecution> executions = new ArrayList<InputStepExecution>();
     @SuppressFBWarnings(value="IS2_INCONSISTENT_SYNC", justification="CopyOnWriteArrayList")
@@ -39,82 +39,82 @@ public class InputAction implements RunAction2 {
     /** ID to InputPromptDefinition */
     private Map<String,InputPromptDefinition> inputDefinitions;
 
-    private transient ReadWriteLock lock = new ReentrantReadWriteLock();
-
     @Override
     public void onAttached(Run<?, ?> r) {
         this.run = r;
     }
 
-    public Map<String, InputPromptDefinition> getInputDefinitions() {
-        try {
-            lock.readLock().lock();
-            if (inputDefinitions == null) {
-                loadExecutions();
-            }
-            return inputDefinitions;
-        } finally {
-            lock.readLock().unlock();
+    public synchronized Map<String, InputPromptDefinition> getInputDefinitions() {
+        if (inputDefinitions == null) {
+            loadExecutions(); // Synchronized
         }
+        return inputDefinitions;
+    }
+
+    public InputPromptDefinition getInputDefinition(@QueryParameter String id) {
+        return getInputDefinitions().get(id);
     }
 
     @Override
     public void onLoad(Run<?, ?> r) {
         this.run = r;
-        try {
-            lock.readLock().lock();
+        synchronized (this) {
             if (ids == null) {
                 // Loading from before JENKINS-25889 fix. Load the IDs and discard the executions, which lack state anyway.
                 assert executions != null && !executions.contains(null) : executions;
                 ids = new ArrayList<String>();
+                if (inputDefinitions == null) {
+                    inputDefinitions = new HashMap<String, InputPromptDefinition>();
+                }
                 for (InputStepExecution execution : executions) {
                     ids.add(execution.getId());
+                    inputDefinitions.put(execution.getId(), new InputPromptDefinition(execution.input));
                 }
                 executions = null;
             }
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
     @SuppressFBWarnings(value="EC_UNRELATED_TYPES_USING_POINTER_EQUALITY", justification="WorkflowRun implements Queue.Executable")
-    private void loadExecutions() {
-        try {
-            lock.readLock().lock(); // Might not be necessary
-            if (executions == null) {
-                lock.writeLock().lock();
-                executions = new ArrayList<InputStepExecution>();
-                try {
-                    FlowExecution execution = null;
-                    for (FlowExecution _execution : FlowExecutionList.get()) {
-                        if (_execution.getOwner().getExecutable() == run) {
-                            execution = _execution;
-                            break;
-                        }
-                    }
-                    if (execution != null) {
-                        // JENKINS-37154 sometimes we must block here in order to get accurate results
-                        for (StepExecution se : execution.getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS)) {
-                            if (se instanceof InputStepExecution) {
-                                InputStepExecution ise = (InputStepExecution) se;
-                                if (ids.contains(ise.getId())) {
-                                    executions.add(ise);
-                                }
-                            }
-                        }
-                        if (executions.size() < ids.size()) {
-                            LOGGER.log(Level.WARNING, "some input IDs not restored from {0}", run);
-                        }
-                    } else {
-                        LOGGER.log(Level.WARNING, "no flow execution found for {0}", run);
-                    }
-                } catch (Exception x) {
-                    LOGGER.log(Level.WARNING, null, x);
+    private synchronized void loadExecutions() {
+        if (executions == null) {
+            boolean needsSave = false;
+            executions = new ArrayList<InputStepExecution>();
+            if (inputDefinitions == null) {
+                inputDefinitions = new HashMap<String, InputPromptDefinition>();
+                needsSave = true;
+            }
+            try {
+            FlowExecution execution = null;
+            for (FlowExecution _execution : FlowExecutionList.get()) {
+                if (_execution.getOwner().getExecutable() == run) {
+                    execution = _execution;
+                    break;
                 }
             }
-        } finally {
-            lock.readLock().unlock();
-            lock.writeLock().unlock();
+            if (execution != null) {
+                // JENKINS-37154 sometimes we must block here in order to get accurate results
+                for (StepExecution se : execution.getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS)) {
+                    if (se instanceof InputStepExecution) {
+                        InputStepExecution ise = (InputStepExecution) se;
+                        if (ids.contains(ise.getId())) {
+                            executions.add(ise);
+                            inputDefinitions.put(ise.getId(), new InputPromptDefinition(ise.input));
+                        }
+                    }
+                }
+                if (needsSave) {
+                    run.save(); // For some reason throws IS2_INCONSISTENT_SYNC
+                }
+                if (executions.size() < ids.size()) {
+                    LOGGER.log(Level.WARNING, "some input IDs not restored from {0}", run);
+                }
+            } else {
+                LOGGER.log(Level.WARNING, "no flow execution found for {0}", run);
+            }
+            } catch (Exception x) {
+                LOGGER.log(Level.WARNING, null, x);
+            }
         }
     }
 
@@ -145,55 +145,37 @@ public class InputAction implements RunAction2 {
         return "input";
     }
 
-    public void add(@Nonnull InputStepExecution step) throws IOException {
-        try {
-            loadExecutions();
-            lock.writeLock().lock();
-            this.executions.add(step);
-            ids.add(step.getId());
-            run.save();
-        } finally {
-            lock.writeLock().unlock();
-        }
+    public synchronized void add(@Nonnull InputStepExecution step) throws IOException {
+        loadExecutions();
+        this.executions.add(step);
+        ids.add(step.getId());
+        this.inputDefinitions.put(step.getId(), new InputPromptDefinition(step.input));
+        run.save();
     }
 
     public synchronized InputStepExecution getExecution(String id) {
-        try {
-            lock.readLock().lock();
-            loadExecutions();
-            for (InputStepExecution e : executions) {
-                if (e.input.getId().equals(id))
-                    return e;
-            }
-            return null;
-        } finally {
-            lock.readLock().unlock();
+        loadExecutions();
+        for (InputStepExecution e : executions) {
+            if (e.input.getId().equals(id))
+                return e;
         }
+        return null;
     }
 
-    public List<InputStepExecution> getExecutions() {
-        try {
-            lock.readLock().lock();
-            loadExecutions();
-            return new ArrayList<InputStepExecution>(executions);
-        } finally {
-            lock.writeLock().lock();
-        }
+    public synchronized List<InputStepExecution> getExecutions() {
+        loadExecutions();
+        return new ArrayList<InputStepExecution>(executions);
     }
 
     /**
      * Called when {@link InputStepExecution} is completed to remove it from the active input list.
      */
-    public void remove(InputStepExecution exec) throws IOException {
-        try {
-            loadExecutions();
-            lock.writeLock().lock();
-            executions.remove(exec);
-            ids.remove(exec.getId());
-            run.save();
-        } finally {
-            lock.writeLock().unlock();
-        }
+    public synchronized void remove(InputStepExecution exec) throws IOException {
+        loadExecutions();
+        executions.remove(exec);
+        ids.remove(exec.getId());
+        inputDefinitions.remove(exec.getId());
+        run.save();
     }
 
     /**

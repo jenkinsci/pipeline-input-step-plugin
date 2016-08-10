@@ -36,25 +36,12 @@ public class InputPromptDefinition {
         return message;
     }
 
-    // TODO pull this and InputStep version out to common function
-    private String capitalize(String id) {
-        if (id==null)
-            return null;
-        if (id.length()==0)
-            throw new IllegalArgumentException();
-        // a-z as the first char is reserved for InputAction
-        char ch = id.charAt(0);
-        if ('a'<=ch && ch<='z')
-            id = ((char)(ch-'a'+'A')) + id.substring(1);
-        return id;
-    }
-
     /**
      * Optional ID that uniquely identifies this input from all others.
      */
     public String getId() {
         if (id==null)
-            id = capitalize(Util.getDigestOf(message));
+            id = InputStep.capitalize(Util.getDigestOf(message));
         return id;
     }
 
