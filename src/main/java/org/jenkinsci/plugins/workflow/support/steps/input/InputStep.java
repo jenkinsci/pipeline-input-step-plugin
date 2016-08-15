@@ -53,12 +53,12 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
     @DataBoundSetter
     public void setId(String id) {
-        this.id = capitalize(Util.fixEmpty(id));
+        this.id = Util.fixEmpty(id);
     }
 
     public String getId() {
         if (id==null)
-            id = capitalize(Util.getDigestOf(message));
+            id = Util.getDigestOf(message);
         return id;
     }
 
@@ -68,18 +68,6 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
     @DataBoundSetter public void setSubmitter(String submitter) {
         this.submitter = Util.fixEmptyAndTrim(submitter);
-    }
-
-    private String capitalize(String id) {
-        if (id==null)
-            return null;
-        if (id.length()==0)
-            throw new IllegalArgumentException();
-        // a-z as the first char is reserved for InputAction
-        char ch = id.charAt(0);
-        if ('a'<=ch && ch<='z')
-            id = ((char)(ch-'a'+'A')) + id.substring(1);
-        return id;
     }
 
     /**
