@@ -258,12 +258,14 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     private boolean canSettle(Authentication a) {
         String submitter = input.getSubmitter();
-        if (submitter==null || a.getName().equals(submitter)) {
-            return true;
-        }
-        for (GrantedAuthority ga : a.getAuthorities()) {
-            if (ga.getAuthority().equals(submitter)) {
+        for ( String approver : submitter.split(","))  {
+            if ((approver == null || a.getName().equals(approver))) {
                 return true;
+            }
+            for (GrantedAuthority ga : a.getAuthorities()) {
+                if (ga.getAuthority().equals(approver)) {
+                    return true;
+                }
             }
         }
         return false;
