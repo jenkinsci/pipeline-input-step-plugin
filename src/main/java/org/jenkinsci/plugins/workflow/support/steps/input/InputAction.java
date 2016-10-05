@@ -121,23 +121,32 @@ public class InputAction implements RunAction2 {
 
     public synchronized void add(@Nonnull InputStepExecution step) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
-        this.executions.add(step);
-        ids.add(step.getId());
-        run.save();
+        if(null != executions) {
+            this.executions.add(step);
+            ids.add(step.getId());
+            run.save();
+        }
     }
 
     public synchronized InputStepExecution getExecution(String id) throws InterruptedException, TimeoutException {
         loadExecutions();
-        for (InputStepExecution e : executions) {
-            if (e.input.getId().equals(id))
-                return e;
+        if(null != executions) {
+            for (InputStepExecution e : executions) {
+                if (e.input.getId().equals(id))
+                    return e;
+            }
         }
         return null;
     }
 
     public synchronized List<InputStepExecution> getExecutions() throws InterruptedException, TimeoutException {
         loadExecutions();
-        return new ArrayList<InputStepExecution>(executions);
+        if(null != executions) {
+            return new ArrayList<InputStepExecution>(executions);
+        }
+        else {
+            return new ArrayList<InputStepExecution>();
+        }
     }
 
     /**
@@ -145,9 +154,11 @@ public class InputAction implements RunAction2 {
      */
     public synchronized void remove(InputStepExecution exec) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
-        executions.remove(exec);
-        ids.remove(exec.getId());
-        run.save();
+        if(null != executions) {
+            executions.remove(exec);
+            ids.remove(exec.getId());
+            run.save();
+        }
     }
 
     /**
