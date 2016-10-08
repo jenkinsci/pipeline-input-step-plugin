@@ -128,12 +128,9 @@ public class InputStepTest extends Assert {
         JenkinsRule.WebClient webClient = j.createWebClient();
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-        // Only give "alice" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "alice"
-        // is listed as the submitter.
-            grant(Jenkins.READ, Job.READ).everywhere().to("alice").
-        // Only give "bob" basic privs.  That's normally not enough to Job.CANCEL and "bob" is not the submitter,
-        // so they should be rejected.
-            grant(Jenkins.READ, Job.READ).everywhere().to("bob").
+        // Only give "alice" and "bob" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "alice"
+        // and "bob" are listed as the submitter.
+            grant(Jenkins.READ, Job.READ).everywhere().to("alice", "bob").
         // Give "charlie" basic privs + Job.CANCEL.  That should allow user3 cancel.
             grant(Jenkins.READ, Job.READ, Job.CANCEL).everywhere().to("charlie"));
 
