@@ -6,7 +6,9 @@ import jenkins.model.RunAction2;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -16,6 +18,7 @@ import javax.annotation.Nonnull;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.kohsuke.stapler.QueryParameter;
 
 /**
  * Records the pending inputs required.
@@ -34,9 +37,23 @@ public class InputAction implements RunAction2 {
 
     private transient Run<?,?> run;
 
+    /** ID to InputPromptDefinition */
+    private Map<String,InputPromptDefinition> inputDefinitions;
+
     @Override
     public void onAttached(Run<?, ?> r) {
         this.run = r;
+    }
+
+    public synchronized Map<String, InputPromptDefinition> getInputDefinitions() throws InterruptedException, TimeoutException{
+        if (inputDefinitions == null) {
+            loadExecutions(); // Synchronized
+        }
+        return inputDefinitions;
+    }
+
+    public InputPromptDefinition getInputDefinition(@QueryParameter String id) throws InterruptedException, TimeoutException {
+        return getInputDefinitions().get(id);
     }
 
     @Override
@@ -47,8 +64,12 @@ public class InputAction implements RunAction2 {
                 // Loading from before JENKINS-25889 fix. Load the IDs and discard the executions, which lack state anyway.
                 assert executions != null && !executions.contains(null) : executions;
                 ids = new ArrayList<String>();
+                if (inputDefinitions == null) {
+                    inputDefinitions = new HashMap<String, InputPromptDefinition>();
+                }
                 for (InputStepExecution execution : executions) {
                     ids.add(execution.getId());
+                    inputDefinitions.put(execution.getId(), new InputPromptDefinition(execution.input));
                 }
                 executions = null;
             }
@@ -58,6 +79,12 @@ public class InputAction implements RunAction2 {
     @SuppressFBWarnings(value="EC_UNRELATED_TYPES_USING_POINTER_EQUALITY", justification="WorkflowRun implements Queue.Executable")
     private synchronized void loadExecutions() throws InterruptedException, TimeoutException {
         if (executions == null) {
+            boolean needsSave = false;
+            executions = new ArrayList<InputStepExecution>();
+            if (inputDefinitions == null) {
+                inputDefinitions = new HashMap<String, InputPromptDefinition>();
+                needsSave = true;
+            }
             try {
             FlowExecution execution = null;
             for (FlowExecution _execution : FlowExecutionList.get()) {
@@ -75,8 +102,12 @@ public class InputAction implements RunAction2 {
                         InputStepExecution ise = (InputStepExecution) se;
                         if (ids.contains(ise.getId())) {
                             executions.add(ise);
+                            inputDefinitions.put(ise.getId(), new InputPromptDefinition(ise.input));
                         }
                     }
+                }
+                if (needsSave) {
+                    run.save(); // For some reason throws IS2_INCONSISTENT_SYNC
                 }
                 if (executions.size() < ids.size()) {
                     LOGGER.log(Level.WARNING, "some input IDs not restored from {0}", run);
@@ -123,6 +154,7 @@ public class InputAction implements RunAction2 {
         loadExecutions();
         this.executions.add(step);
         ids.add(step.getId());
+        this.inputDefinitions.put(step.getId(), new InputPromptDefinition(step.input));
         run.save();
     }
 
@@ -147,6 +179,7 @@ public class InputAction implements RunAction2 {
         loadExecutions();
         executions.remove(exec);
         ids.remove(exec.getId());
+        inputDefinitions.remove(exec.getId());
         run.save();
     }
 

@@ -85,7 +85,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     public void stop(Throwable cause) throws Exception {
         // JENKINS-37154: we might be inside the VM thread, so do not do anything which might block on the VM thread
         Timer.get().submit(new Runnable() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 doAbort();
             }
         });

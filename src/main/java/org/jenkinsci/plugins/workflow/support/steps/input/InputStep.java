@@ -70,7 +70,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         this.submitter = Util.fixEmptyAndTrim(submitter);
     }
 
-    private String capitalize(String id) {
+    static String capitalize(String id) {
         if (id==null)
             return null;
         if (id.length()==0)
