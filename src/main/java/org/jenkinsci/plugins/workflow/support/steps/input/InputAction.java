@@ -6,6 +6,7 @@ import jenkins.model.RunAction2;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -121,6 +122,9 @@ public class InputAction implements RunAction2 {
 
     public synchronized void add(@Nonnull InputStepExecution step) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
+        if (executions == null) {
+            throw new IOException("cannot load state");
+        }
         this.executions.add(step);
         ids.add(step.getId());
         run.save();
@@ -128,6 +132,9 @@ public class InputAction implements RunAction2 {
 
     public synchronized InputStepExecution getExecution(String id) throws InterruptedException, TimeoutException {
         loadExecutions();
+        if (executions == null) {
+            return null;
+        }
         for (InputStepExecution e : executions) {
             if (e.input.getId().equals(id))
                 return e;
@@ -137,6 +144,9 @@ public class InputAction implements RunAction2 {
 
     public synchronized List<InputStepExecution> getExecutions() throws InterruptedException, TimeoutException {
         loadExecutions();
+        if (executions == null) {
+            return Collections.emptyList();
+        }
         return new ArrayList<InputStepExecution>(executions);
     }
 
@@ -145,6 +155,9 @@ public class InputAction implements RunAction2 {
      */
     public synchronized void remove(InputStepExecution exec) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
+        if (executions == null) {
+            throw new IOException("cannot load state");
+        }
         executions.remove(exec);
         ids.remove(exec.getId());
         run.save();
