@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import hudson.FilePath;
 import hudson.Util;
@@ -33,6 +34,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -258,13 +260,14 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     private boolean canSettle(Authentication a) {
         String submitter = input.getSubmitter();
-        if (submitter==null || a.getName().equals(submitter)) {
+        if (submitter==null)
             return true;
-        }
+        final Set<String> submitters = Sets.newHashSet(submitter.split(","));
+        if (submitters.contains(a.getName()))
+            return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
-            if (ga.getAuthority().equals(submitter)) {
+            if (submitters.contains(ga.getAuthority()))
                 return true;
-            }
         }
         return false;
     }

@@ -128,12 +128,9 @@ public class InputStepTest extends Assert {
         JenkinsRule.WebClient webClient = j.createWebClient();
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-        // Only give "alice" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "alice"
-        // is listed as the submitter.
-            grant(Jenkins.READ, Job.READ).everywhere().to("alice").
-        // Only give "bob" basic privs.  That's normally not enough to Job.CANCEL and "bob" is not the submitter,
-        // so they should be rejected.
-            grant(Jenkins.READ, Job.READ).everywhere().to("bob").
+        // Only give "alice" and "bob" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "alice"
+        // and "bob" are listed as the submitter.
+            grant(Jenkins.READ, Job.READ).everywhere().to("alice", "bob").
         // Give "charlie" basic privs + Job.CANCEL.  That should allow user3 cancel.
             grant(Jenkins.READ, Job.READ, Job.CANCEL).everywhere().to("charlie"));
 
@@ -143,6 +140,29 @@ public class InputStepTest extends Assert {
         runAndAbort(webClient, foo, "alice", true);   // alice should work coz she's declared as 'submitter'
         runAndAbort(webClient, foo, "bob", false);    // bob shouldn't work coz he's not declared as 'submitter' and doesn't have Job.CANCEL privs
         runAndAbort(webClient, foo, "charlie", true); // charlie should work coz he has Job.CANCEL privs
+    }
+
+    @Test
+    @Issue("JENKINS-31425")
+    public void test_submitters() throws Exception {
+        JenkinsRule.WebClient webClient = j.createWebClient();
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                // Only give "alice" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "alice"
+                // is listed as the submitter.
+                        grant(Jenkins.READ, Job.READ).everywhere().to("alice").
+                // Only give "bob" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "bob"
+                // is listed as the submitter.
+                        grant(Jenkins.READ, Job.READ).everywhere().to("bob").
+                // Give "charlie" basic privs.  That's normally not enough to Job.CANCEL, and isn't listed as submiter.
+                        grant(Jenkins.READ, Job.READ).everywhere().to("charlie"));
+
+        final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes', submitter: 'alice,bob'", true));
+
+        runAndAbort(webClient, foo, "alice", true);   // alice should work coz she's declared as 'submitter'
+        runAndAbort(webClient, foo, "bob", true);    // bob should work coz he's declared as 'submitter'
+        runAndAbort(webClient, foo, "charlie", false); // charlie shouldn't work coz he's not declared as 'submitter' and doesn't have Job.CANCEL privs
     }
 
     private void runAndAbort(JenkinsRule.WebClient webClient, WorkflowJob foo, String loginAs, boolean expectAbortOk) throws Exception {

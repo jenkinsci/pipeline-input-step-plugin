@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import com.google.common.collect.Sets;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.ParameterDefinition;
@@ -13,7 +14,9 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * {@link Step} that pauses for human input.
@@ -116,10 +119,13 @@ public class InputStep extends AbstractStepImpl implements Serializable {
      */
     @Deprecated
     public boolean canSettle(Authentication a) {
-        if (submitter==null || a.getName().equals(submitter))
+        if (submitter==null)
+            return true;
+        final Set<String> submitters = Sets.newHashSet(submitter.split(","));
+        if (submitters.contains(a.getName()))
             return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
-            if (ga.getAuthority().equals(submitter))
+            if (submitters.contains(ga.getAuthority()))
                 return true;
         }
         return false;
