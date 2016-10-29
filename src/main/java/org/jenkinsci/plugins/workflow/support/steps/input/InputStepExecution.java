@@ -301,8 +301,15 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             }
         }
 
-        // TODO: perhaps we should return a different object to allow the workflow to look up
-        // who approved it, etc?
+        // If requested, add the approver to the list of returned parameters.
+        String submitter = input.getSubmitter();
+        if (submitter != null) {
+            String valueName = input.getSubmitterParameter();
+            if (valueName != null) {
+                mapResult.put(valueName, submitter);
+            }
+        }
+
         switch (mapResult.size()) {
         case 0:
             return null;    // no value if there's no parameter

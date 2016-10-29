@@ -36,6 +36,11 @@ public class InputStep extends AbstractStepImpl implements Serializable {
      */
     private String submitter;
 
+    /**
+     * Optional parameter name to stored the user who responded to the input.
+     */
+    private String submitterParameter;
+
 
     /**
      * Either a single {@link ParameterDefinition} or a list of them.
@@ -71,6 +76,12 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
     @DataBoundSetter public void setSubmitter(String submitter) {
         this.submitter = Util.fixEmptyAndTrim(submitter);
+    }
+
+    public String getSubmitterParameter() { return submitterParameter; }
+
+    @DataBoundSetter public void setSubmitterParameter(String submitterParameter) {
+        this.submitterParameter = Util.fixEmptyAndTrim(submitterParameter);
     }
 
     private String capitalize(String id) {
