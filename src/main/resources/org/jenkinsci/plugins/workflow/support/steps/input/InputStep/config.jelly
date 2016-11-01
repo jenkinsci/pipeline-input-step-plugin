@@ -38,6 +38,9 @@ THE SOFTWARE.
         <f:entry field="submitter" title="Allowed Submitter">
             <f:textbox/>
         </f:entry>
+        <f:enttry field="submitterParameter" title="Parameter to store the approving submitter">
+            <f:textbox/>
+        </f:entry>
         <f:entry field="parameters" title="Parameters">
             <f:repeatableHeteroProperty field="parameters"/>
         </f:entry>
