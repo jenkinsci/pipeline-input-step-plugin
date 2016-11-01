@@ -174,18 +174,14 @@ public class InputStepTest extends Assert {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "echo('before');",
-                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitter:'alice', submitterParameter: 'approval';",
+                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitter:'alice,bob', submitterParameter: 'approval';",
                 "echo(\"after: ${x}\");"),"\n"),true));
 
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
-        CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
-
-        while (b.getAction(InputAction.class)==null) {
-            e.waitForSuspension();
-        }
+        j.waitForMessage("input", b);
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
@@ -193,7 +189,7 @@ public class InputStepTest extends Assert {
 
         InputStepExecution is = a.getExecution("Icecream");
         assertEquals("Do you want chocolate?", is.getInput().getMessage());
-        assertEquals("alice", is.getInput().getSubmitter());
+        assertEquals("alice,bob", is.getInput().getSubmitter());
 
         // submit the input, and run workflow to the completion
         JenkinsRule.WebClient wc = j.createWebClient();
@@ -204,10 +200,7 @@ public class InputStepTest extends Assert {
         q.get();
 
         // make sure 'x' gets 'alice'
-        System.out.println(b.getLog());
-        String v = b.getLog();
-        System.out.println(v);
-        assertTrue(b.getLog().contains("after: alice"));
+        j.assertLogContains("after: alice", b);
     }
 
     private void runAndAbort(JenkinsRule.WebClient webClient, WorkflowJob foo, String loginAs, boolean expectAbortOk) throws Exception {
