@@ -304,9 +304,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         // If requested, add the approver to the list of returned parameters.
         String submitter = input.getSubmitter();
         if (submitter != null) {
+            Authentication a = Jenkins.getAuthentication();
             String valueName = input.getSubmitterParameter();
             if (valueName != null) {
-                mapResult.put(valueName, submitter);
+                mapResult.put(valueName, a.getName());
             }
         }
 
