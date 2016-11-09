@@ -15,6 +15,7 @@ import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.User;
+import hudson.security.ACL;
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
@@ -88,7 +89,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         // JENKINS-37154: we might be inside the VM thread, so do not do anything which might block on the VM thread
         Timer.get().submit(new Runnable() {
             @Override public void run() {
-                doAbort();
+                ACL.impersonate(ACL.SYSTEM, new Runnable() {
+                    @Override public void run() {
+                        doAbort();
+                    }
+                });
             }
         });
     }

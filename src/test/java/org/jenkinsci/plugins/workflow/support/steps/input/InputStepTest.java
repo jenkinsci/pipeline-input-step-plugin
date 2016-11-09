@@ -29,6 +29,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.Job;
+import hudson.model.Result;
 import hudson.model.queue.QueueTaskFuture;
 
 
@@ -196,6 +197,15 @@ public class InputStepTest extends Assert {
             assertFalse(expectAbortOk);
             assertEquals("Yes or Abort", log.get(log.size() - 1));  // Should still be paused at input
         }
+    }
+
+    @Issue("JENKINS-38380")
+    @Test public void timeoutAuth() throws Exception {
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().grant(Jenkins.ADMINISTER).everywhere().to("ops"));
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("timeout(time: 1, unit: 'SECONDS') {input message: 'OK?', submitter: 'ops'}", true));
+        j.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0).get());
     }
 
 }
