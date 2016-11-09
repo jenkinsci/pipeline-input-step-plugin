@@ -306,8 +306,13 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             }
         }
 
-        // TODO: perhaps we should return a different object to allow the workflow to look up
-        // who approved it, etc?
+        // If a destination value is specified, push the submitter to it.
+        String valueName = input.getSubmitterParameter();
+        if (valueName != null && !valueName.isEmpty()) {
+            Authentication a = Jenkins.getAuthentication();
+            mapResult.put(valueName, a.getName());
+        }
+
         switch (mapResult.size()) {
         case 0:
             return null;    // no value if there's no parameter
