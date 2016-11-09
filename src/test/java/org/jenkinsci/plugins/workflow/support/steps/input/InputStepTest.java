@@ -173,10 +173,8 @@ public class InputStepTest extends Assert {
         // job setup
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
-                "echo('before');",
                 "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitter:'alice,bob', submitterParameter: 'approval';",
                 "echo(\"after: ${x}\");"),"\n"),true));
-
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -190,6 +188,41 @@ public class InputStepTest extends Assert {
         InputStepExecution is = a.getExecution("Icecream");
         assertEquals("Do you want chocolate?", is.getInput().getMessage());
         assertEquals("alice,bob", is.getInput().getSubmitter());
+
+        // submit the input, and run workflow to the completion
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.login("alice");
+        HtmlPage p = wc.getPage(b, a.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+        assertEquals(0, a.getExecutions().size());
+        q.get();
+
+        // make sure 'x' gets 'alice'
+        j.assertLogContains("after: alice", b);
+    }
+
+    @Test
+    @Issue("JENKINS-31396")
+    public void test_submitter_parameter_no_submitter() throws Exception {
+        //set up dummy security real
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        // job setup
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
+                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitterParameter: 'approval';",
+                "echo(\"after: ${x}\");"),"\n"),true));
+
+        // get the build going, and wait until workflow pauses
+        QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
+        WorkflowRun b = q.getStartCondition().get();
+        j.waitForMessage("input", b);
+
+        // make sure we are pausing at the right state that reflects what we wrote in the program
+        InputAction a = b.getAction(InputAction.class);
+        assertEquals(1, a.getExecutions().size());
+
+        InputStepExecution is = a.getExecution("Icecream");
+        assertEquals("Do you want chocolate?", is.getInput().getMessage());
 
         // submit the input, and run workflow to the completion
         JenkinsRule.WebClient wc = j.createWebClient();
