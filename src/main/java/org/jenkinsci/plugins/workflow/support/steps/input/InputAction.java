@@ -176,6 +176,7 @@ public class InputAction implements RunAction2 {
         if (pendingExecutions == null || completedExecutions == null) {
             throw new IOException("cannot load state");
         }
+        ids.remove(exec.getId());
         pendingExecutions.remove(exec);
         completedExecutions.add(exec);
         run.save();
