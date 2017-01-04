@@ -60,6 +60,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     private Outcome outcome;
 
+    private String nodeId;
+
     @Inject(optional=true) InputStep input;
 
     @Override
@@ -69,6 +71,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
         // This node causes the flow to pause at this point so we mark it as a "Pause Node".
         node.addAction(new PauseAction("Input"));
+        nodeId = node.getId();
 
         String baseUrl = '/' + run.getUrl() + getPauseAction().getUrlName() + '/';
         if (input.getParameters().isEmpty()) {
@@ -98,6 +101,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         });
     }
 
+    public String getNodeId() {
+        return nodeId;
+    }
+
     public String getId() {
         return input.getId();
     }
@@ -108,6 +115,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     public Run getRun() {
         return run;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getValues() {
+        return outcome.isSuccess() ? (Map<String, Object>) outcome.getNormal() : null;
     }
 
     /**
@@ -234,10 +246,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     private void postSettlement() {
         try {
-            getPauseAction().remove(this);
+            getPauseAction().completed(this);
             run.save();
         } catch (IOException | InterruptedException | TimeoutException x) {
-            LOGGER.log(Level.WARNING, "failed to remove InputAction from " + run, x);
+            LOGGER.log(Level.WARNING, "failed to completed InputAction from " + run, x);
         } finally {
             if (node != null) {
                 try {

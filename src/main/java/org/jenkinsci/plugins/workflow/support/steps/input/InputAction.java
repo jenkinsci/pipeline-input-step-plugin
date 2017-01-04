@@ -29,7 +29,9 @@ public class InputAction implements RunAction2 {
     @SuppressWarnings("FieldMayBeFinal")
     private static /* not final */ int LOAD_EXECUTIONS_TIMEOUT = Integer.getInteger(InputAction.class.getName() + ".LOAD_EXECUTIONS_TIMEOUT", 60);
 
-    private transient List<InputStepExecution> executions = new ArrayList<InputStepExecution>();
+    private transient List<InputStepExecution> pendingExecutions = new ArrayList<>();
+    private List<InputStepExecution> completedExecutions = new ArrayList<>();
+
     @SuppressFBWarnings(value="IS2_INCONSISTENT_SYNC", justification="CopyOnWriteArrayList")
     private List<String> ids = new CopyOnWriteArrayList<String>();
 
@@ -46,19 +48,19 @@ public class InputAction implements RunAction2 {
         synchronized (this) {
             if (ids == null) {
                 // Loading from before JENKINS-25889 fix. Load the IDs and discard the executions, which lack state anyway.
-                assert executions != null && !executions.contains(null) : executions;
+                assert pendingExecutions != null && !pendingExecutions.contains(null) : pendingExecutions;
                 ids = new ArrayList<String>();
-                for (InputStepExecution execution : executions) {
+                for (InputStepExecution execution : pendingExecutions) {
                     ids.add(execution.getId());
                 }
-                executions = null;
+                pendingExecutions = null;
             }
         }
     }
 
     @SuppressFBWarnings(value="EC_UNRELATED_TYPES_USING_POINTER_EQUALITY", justification="WorkflowRun implements Queue.Executable")
     private synchronized void loadExecutions() throws InterruptedException, TimeoutException {
-        if (executions == null) {
+        if (pendingExecutions == null) {
             try {
             FlowExecution execution = null;
             for (FlowExecution _execution : FlowExecutionList.get()) {
@@ -69,17 +71,17 @@ public class InputAction implements RunAction2 {
             }
             if (execution != null) {
                 List<StepExecution> candidateExecutions = execution.getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS);
-                executions = new ArrayList<>(); // only set this if we know the answer
+                pendingExecutions = new ArrayList<>(); // only set this if we know the answer
                 // JENKINS-37154 sometimes we must block here in order to get accurate results
                 for (StepExecution se : candidateExecutions) {
                     if (se instanceof InputStepExecution) {
                         InputStepExecution ise = (InputStepExecution) se;
                         if (ids.contains(ise.getId())) {
-                            executions.add(ise);
+                            pendingExecutions.add(ise);
                         }
                     }
                 }
-                if (executions.size() < ids.size()) {
+                if (pendingExecutions.size() < ids.size()) {
                     LOGGER.log(Level.WARNING, "some input IDs not restored from {0}", run);
                 }
             } else {
@@ -122,44 +124,60 @@ public class InputAction implements RunAction2 {
 
     public synchronized void add(@Nonnull InputStepExecution step) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
-        if (executions == null) {
+        if (pendingExecutions == null) {
             throw new IOException("cannot load state");
         }
-        this.executions.add(step);
+        this.pendingExecutions.add(step);
         ids.add(step.getId());
         run.save();
     }
 
     public synchronized InputStepExecution getExecution(String id) throws InterruptedException, TimeoutException {
         loadExecutions();
-        if (executions == null) {
+        if (pendingExecutions == null) {
             return null;
         }
-        for (InputStepExecution e : executions) {
+        for (InputStepExecution e : pendingExecutions) {
             if (e.input.getId().equals(id))
                 return e;
         }
         return null;
     }
 
-    public synchronized List<InputStepExecution> getExecutions() throws InterruptedException, TimeoutException {
+    /**
+     * @deprecated use {@link #getPendingExecutions()}
+     */
+    @Deprecated
+    public List<InputStepExecution> getExecutions() throws InterruptedException, TimeoutException {
+        return getPendingExecutions();
+    }
+
+    public synchronized List<InputStepExecution> getPendingExecutions() throws InterruptedException, TimeoutException {
         loadExecutions();
-        if (executions == null) {
+        if (pendingExecutions == null) {
             return Collections.emptyList();
         }
-        return new ArrayList<InputStepExecution>(executions);
+        return new ArrayList<>(pendingExecutions);
+    }
+
+    public synchronized List<InputStepExecution> getCompletedExecutions() throws InterruptedException, TimeoutException {
+        loadExecutions();
+        if (completedExecutions == null) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(completedExecutions);
     }
 
     /**
-     * Called when {@link InputStepExecution} is completed to remove it from the active input list.
+     * Called when {@link InputStepExecution} is completed to completed it from the active input list.
      */
-    public synchronized void remove(InputStepExecution exec) throws IOException, InterruptedException, TimeoutException {
+    public synchronized void completed(InputStepExecution exec) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
-        if (executions == null) {
+        if (pendingExecutions == null || completedExecutions == null) {
             throw new IOException("cannot load state");
         }
-        executions.remove(exec);
-        ids.remove(exec.getId());
+        pendingExecutions.remove(exec);
+        completedExecutions.add(exec);
         run.save();
     }
 
