@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.google.common.base.Predicate;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.Job;
 import hudson.model.Result;
@@ -39,6 +40,8 @@ import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Assert;
@@ -48,7 +51,11 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.Arrays;
+import java.util.Map;
+
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
+
+import javax.annotation.Nullable;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -120,7 +127,25 @@ public class InputStepTest extends Assert {
         //make sure the approver name corresponds to the submitter
         ApproverAction action = b.getAction(ApproverAction.class);
         assertNotNull(action);
-        assertEquals("alice", action.getUserId());;
+        assertEquals("alice", action.getUserId());
+
+        DepthFirstScanner scanner = new DepthFirstScanner();
+
+        FlowNode nodeWithInputSubmittedAction = scanner.findFirstMatch(e.getCurrentHeads(), null, new Predicate<FlowNode>() {
+            @Override
+            public boolean apply(@Nullable FlowNode input) {
+                return input != null && input.getAction(InputSubmittedAction.class) != null;
+            }
+        });
+        assertNotNull(nodeWithInputSubmittedAction);
+        InputSubmittedAction inputSubmittedAction = nodeWithInputSubmittedAction.getAction(InputSubmittedAction.class);
+        assertNotNull(inputSubmittedAction);
+
+        assertEquals("alice", inputSubmittedAction.getApprover());
+        Map<String,Object> submittedParams = inputSubmittedAction.getParameters();
+        assertEquals(1, submittedParams.size());
+        assertTrue(submittedParams.containsKey("chocolate"));
+        assertEquals(false, submittedParams.get("chocolate"));
     }
 
     @Test
