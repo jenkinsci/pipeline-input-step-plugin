@@ -33,7 +33,14 @@ import java.util.Map;
 
 public class InputSubmittedAction implements PersistentAction {
 
+    /**
+     * Parameters, if any, submitted when the input was approved.
+     */
     private final Map<String,Object> parameters = new LinkedHashMap<>();
+
+    /**
+     * The user ID of the approving user.
+     */
     private final String approver;
 
     public InputSubmittedAction(String approver, @CheckForNull Map<String,Object> parameters) {
