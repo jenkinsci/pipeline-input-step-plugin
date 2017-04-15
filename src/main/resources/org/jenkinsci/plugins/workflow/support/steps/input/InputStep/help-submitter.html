@@ -1,4 +1,8 @@
 <div>
-    User IDs and/or <em>external</em> group names of person or people permitted to respond to the input, separated by ','.
-    If you configure "alice, bob", will match with "alice" but not with "bob". You need to remove all the white spaces.
+    User IDs and/or <em>external</em> group names of person or people permitted to respond to the input, e.g.:
+    <br> "alice & bob" - means need both of alice and bob approve for proceeding
+    <br> "alice | bob" - means need one of alice and bob approve for proceeding
+    <br> "alice,bob" same as the above "alice | bob" for proceeding
+    <br> "(alice | bob) & tom" - means need alice and tom approve or bob and tom approve for proceeding
+    <br><b> So "&" means logical AND, "|" means logical OR, "," same as "|" and you can use "()" to group them.
 </div>

@@ -1,10 +1,16 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
-import com.google.common.collect.Sets;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.ParameterDefinition;
 import jenkins.model.Jenkins;
+
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
@@ -12,11 +18,9 @@ import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * {@link Step} that pauses for human input.
@@ -32,15 +36,19 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     private String id;
 
     /**
-     * Optional user/group name who can approve this.
+     * Optional user/group name who can approve this
      */
     private String submitter;
+
+    /**
+     * Optional user/group name who did approval (true) or not (false).
+     */
+    private Map<String, Boolean> submittersApprovals;
 
     /**
      * Optional parameter name to stored the user who responded to the input.
      */
     private String submitterParameter;
-
 
     /**
      * Either a single {@link ParameterDefinition} or a list of them.
@@ -74,8 +82,28 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         return submitter;
     }
 
+    public Map<String, Boolean> getSubmittersApprovals() {
+        return submittersApprovals;
+    }
+
     @DataBoundSetter public void setSubmitter(String submitter) {
         this.submitter = Util.fixEmptyAndTrim(submitter);
+        this.submittersApprovals = initSubmittersApprovals(this.submitter);
+    }
+
+    private Map<String, Boolean> initSubmittersApprovals(String submitters){
+        if(submitters == null){
+            return null;
+        }
+        String submitters_list = submitters.replaceAll("[,&|()]", " ").trim();
+        if(submitters_list.isEmpty()){
+            return null;
+        }
+        Map<String, Boolean> initApprovals = Maps.newHashMap();
+        for (String u : submitters_list.split("\\s+")){
+            initApprovals.put(u, false);
+        }
+        return initApprovals;
     }
 
     public String getSubmitterParameter() { return submitterParameter; }
