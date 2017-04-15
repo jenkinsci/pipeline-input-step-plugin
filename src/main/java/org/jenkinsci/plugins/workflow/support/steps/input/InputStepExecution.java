@@ -1,7 +1,5 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
-import com.google.common.collect.Sets;
-import com.google.inject.Inject;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
@@ -18,29 +16,34 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.acegisecurity.Authentication;
-import org.acegisecurity.GrantedAuthority;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
-import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.servlet.ServletException;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jenkins.util.Timer;
+
+import org.acegisecurity.Authentication;
+import org.acegisecurity.GrantedAuthority;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
+import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.interceptor.RequirePOST;
+
+import com.google.inject.Inject;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -71,7 +74,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         node.addAction(new PauseAction("Input"));
 
         String baseUrl = '/' + run.getUrl() + getPauseAction().getUrlName() + '/';
-        if (input.getParameters().isEmpty()) {
+        if (input.getParameters().isEmpty() && (input.getSubmitterParameter() == null || input.getSubmitterParameter().isEmpty())) {
             String thisUrl = baseUrl + Util.rawEncode(getId()) + '/';
             listener.getLogger().printf("%s%n%s or %s%n", input.getMessage(),
                     POSTHyperlinkNote.encodeTo(thisUrl + "proceedEmpty", input.getOk()),
@@ -169,18 +172,44 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     public HttpResponse proceed(Object v) {
         User user = User.current();
-        if (user != null){
+        Map<String, Boolean> approvalsMap = this.input.getSubmittersApprovals();
+        if (user != null) {
             run.addAction(new ApproverAction(user.getId()));
-            listener.getLogger().println("Approved by " + hudson.console.ModelHyperlinkNote.encodeTo(user));
+            listener.getLogger()
+                    .println("Approved by " + hudson.console.ModelHyperlinkNote.encodeTo(user));
+            if (approvalsMap != null && !approvalsMap.get(user.getId())) {
+                approvalsMap.put(user.getId(), true);
+            } else {
+                listener.getLogger()
+                        .println(hudson.console.ModelHyperlinkNote.encodeTo(user) + " have already approved");
+            }
+        }
+        if (user == null || approvalsMap == null || evalApprovals()) {
+            outcome = new Outcome(v, null);
+            postSettlement();
+            getContext().onSuccess(v);
+        } else {
+            listener.getLogger()
+                    .println("Still wait for others approval for proceeding. The submitters configured is " + this.input.getSubmitter());
         }
 
-        outcome = new Outcome(v, null);
-        postSettlement();
-        getContext().onSuccess(v);
-
         // TODO: record this decision to FlowNode
-
         return HttpResponses.ok();
+    }
+
+    private boolean evalApprovals() {
+        Map<String, Boolean> approvals = this.input.getSubmittersApprovals();
+        StringBuffer exprGroovy = new StringBuffer("");
+        for (Entry entry : approvals.entrySet()) {
+            exprGroovy.append("boolean ")
+                    .append(entry.getKey())
+                    .append(" = ")
+                    .append(entry.getValue())
+                    .append(" \n");
+        }
+        exprGroovy.append(this.input.getSubmitter()
+                .replaceAll(",", "|"));
+        return (Boolean) groovy.util.Eval.me(exprGroovy.toString());
     }
 
     /**
@@ -264,12 +293,13 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * Checks if the given user can settle this input.
      */
     private boolean canSettle(Authentication a) {
-        String submitter = input.getSubmitter();
-        if (submitter==null)
+        if(input.getSubmittersApprovals() == null){
             return true;
-        final Set<String> submitters = Sets.newHashSet(submitter.split(","));
-        if (submitters.contains(a.getName()))
+        }
+        final Set<String> submitters = input.getSubmittersApprovals().keySet();
+        if(submitters.contains(a.getName())){
             return true;
+        }
         for (GrantedAuthority ga : a.getAuthorities()) {
             if (submitters.contains(ga.getAuthority()))
                 return true;

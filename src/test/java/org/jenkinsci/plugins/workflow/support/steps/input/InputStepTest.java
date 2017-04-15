@@ -24,18 +24,15 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
-import com.gargoylesoftware.htmlunit.ElementNotFoundException;
-import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.Job;
 import hudson.model.Result;
 import hudson.model.queue.QueueTaskFuture;
+import jenkins.model.Jenkins;
 
-
+import java.util.Arrays;
 import java.util.List;
 
-import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
@@ -46,9 +43,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import java.util.Arrays;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
+
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -193,6 +192,8 @@ public class InputStepTest extends Assert {
         // submit the input, and run workflow to the completion
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.login("alice");
+        HtmlPage console_page = wc.getPage(b, "console");
+        assertFalse(console_page.asXml().contains("proceedEmpty"));
         HtmlPage p = wc.getPage(b, a.getUrlName());
         j.submit(p.getFormByName(is.getId()), "proceed");
         assertEquals(0, a.getExecutions().size());
@@ -278,5 +279,62 @@ public class InputStepTest extends Assert {
         p.setDefinition(new CpsFlowDefinition("timeout(time: 1, unit: 'SECONDS') {input message: 'OK?', submitter: 'ops'}", true));
         j.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0).get());
     }
+
+    @Test public void test_submitters_approvals_aggregation() throws Exception {
+        //set up dummy security real
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        // job setup
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
+                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitter:'alice & bob', submitterParameter: 'approval';",
+                "echo(\"after: ${x}\");",
+                "x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitter:'(john | kate) & tom', submitterParameter: 'approval';",
+                "echo(\"after: ${x}\");"
+        ),"\n"),true));
+
+        // get the build going, and wait until workflow pauses
+        QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
+        WorkflowRun b = q.getStartCondition().get();
+        j.waitForMessage("input", b);
+
+        // make sure we are pausing at the right state that reflects what we wrote in the program
+        InputAction a = b.getAction(InputAction.class);
+        assertEquals(1, a.getExecutions().size());
+
+        InputStepExecution is = a.getExecution("Icecream");
+        assertEquals("Do you want chocolate?", is.getInput().getMessage());
+        assertEquals("alice & bob", is.getInput().getSubmitter());
+
+        // submit the input, and run workflow to the completion
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.login("alice");
+        HtmlPage p = wc.getPage(b, a.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+
+        j.assertLogContains("Approved by alice", b);
+        j.assertLogContains("Still wait for others approval for proceeding. The submitters configured is alice & bob", b);
+
+        wc.login("bob");
+        p = wc.getPage(b, a.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+        j.assertLogContains("Approved by bob", b);
+
+        j.assertLogContains("after: bob", b);
+
+        wc.login("kate");
+        p = wc.getPage(b, a.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+        j.assertLogContains("Approved by kate", b);
+        j.assertLogContains("Still wait for others approval for proceeding. The submitters configured is (john | kate) & tom", b);
+
+        wc.login("tom");
+        p = wc.getPage(b, a.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+        j.assertLogContains("Approved by kate", b);
+
+        q.get();
+        j.assertLogContains("after: tom", b);
+    }
+
 
 }
