@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
@@ -198,13 +199,17 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     private boolean evalApprovals() {
         Map<String, Boolean> approvals = this.input.getSubmittersApprovals();
-        String exprGroovy = "";
-        for (String u : approvals.keySet()) {
-            exprGroovy += "boolean " + u + " = " + approvals.get(u) + " \n";
+        StringBuffer exprGroovy = new StringBuffer("");
+        for (Entry entry : approvals.entrySet()) {
+            exprGroovy.append("boolean ")
+                    .append(entry.getKey())
+                    .append(" = ")
+                    .append(entry.getValue())
+                    .append(" \n");
         }
-        exprGroovy += this.input.getSubmitter()
-                .replaceAll(",", "|");
-        return (Boolean) groovy.util.Eval.me(exprGroovy);
+        exprGroovy.append(this.input.getSubmitter()
+                .replaceAll(",", "|"));
+        return (Boolean) groovy.util.Eval.me(exprGroovy.toString());
     }
 
     /**
