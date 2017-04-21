@@ -30,6 +30,7 @@ import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.HashMap;
@@ -156,7 +157,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     @RequirePOST
     public HttpResponse doProceed(StaplerRequest request) throws IOException, ServletException, InterruptedException {
         preSubmissionCheck();
-        Object v = parseValue(request);
+        Map<String,Object> v = parseValue(request);
         return proceed(v);
     }
 
@@ -164,16 +165,25 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * Processes the acceptance (approval) request.
      * This method is used by both {@link #doProceedEmpty()} and {@link #doProceed(StaplerRequest)}
      *
-     * @param v An object that represents the parameters sent in the request
+     * @param params A map that represents the parameters sent in the request
      * @return A HttpResponse object that represents Status code (200) indicating the request succeeded normally.
      */
-    public HttpResponse proceed(Object v) {
+    public HttpResponse proceed(@CheckForNull Map<String,Object> params) {
         User user = User.current();
+        String approverId = null;
         if (user != null){
-            run.addAction(new ApproverAction(user.getId()));
+            approverId = user.getId();
+            run.addAction(new ApproverAction(approverId));
             listener.getLogger().println("Approved by " + hudson.console.ModelHyperlinkNote.encodeTo(user));
         }
+        node.addAction(new InputSubmittedAction(approverId, params));
 
+        Object v;
+        if (params != null && params.size() == 1) {
+            v = params.values().iterator().next();
+        } else {
+            v = params;
+        }
         outcome = new Outcome(v, null);
         postSettlement();
         getContext().onSuccess(v);
@@ -280,7 +290,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     /**
      * Parse the submitted {@link ParameterValue}s
      */
-    private Object parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
+    private Map<String,Object> parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
         Map<String, Object> mapResult = new HashMap<String, Object>();
         List<ParameterDefinition> defs = input.getParameters();
 
@@ -313,12 +323,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             mapResult.put(valueName, a.getName());
         }
 
-        switch (mapResult.size()) {
-        case 0:
-            return null;    // no value if there's no parameter
-        case 1:
-            return mapResult.values().iterator().next();
-        default:
+        if (mapResult.isEmpty()) {
+            return null;
+        } else {
             return mapResult;
         }
     }
