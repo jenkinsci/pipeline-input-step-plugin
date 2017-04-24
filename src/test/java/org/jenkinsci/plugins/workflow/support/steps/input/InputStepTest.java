@@ -167,7 +167,7 @@ public class InputStepTest extends Assert {
     }
 
     @Test
-    @Issue("JENKINS-31396")
+    @Issue({"JENKINS-31396","JENKINS-40594"})
     public void test_submitter_parameter() throws Exception {
         //set up dummy security real
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
@@ -193,6 +193,8 @@ public class InputStepTest extends Assert {
         // submit the input, and run workflow to the completion
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.login("alice");
+        HtmlPage console_page = wc.getPage(b, "console");
+        assertFalse(console_page.asXml().contains("proceedEmpty"));
         HtmlPage p = wc.getPage(b, a.getUrlName());
         j.submit(p.getFormByName(is.getId()), "proceed");
         assertEquals(0, a.getExecutions().size());
