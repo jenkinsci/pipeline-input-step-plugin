@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import hudson.util.Secret;
 import org.jenkinsci.plugins.workflow.actions.PersistentAction;
 
 import javax.annotation.CheckForNull;
@@ -46,7 +47,15 @@ public class InputSubmittedAction implements PersistentAction {
     public InputSubmittedAction(String approver, @CheckForNull Map<String,Object> parameters) {
         this.approver = approver;
         if (parameters != null) {
-            this.parameters.putAll(parameters);
+            for (Map.Entry<String,Object> entry : parameters.entrySet()) {
+                String k = entry.getKey();
+                Object v = entry.getValue();
+                if (v instanceof Secret) {
+                    this.parameters.put(k, "******");
+                } else {
+                    this.parameters.put(k, v);
+                }
+            }
         }
     }
 

@@ -76,7 +76,7 @@ public class InputStepTest extends Assert {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "echo('before');",
-                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', parameters: [[$class: 'BooleanParameterDefinition', name: 'chocolate', defaultValue: false, description: 'Favorite icecream flavor']], submitter:'alice';",
+                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', parameters: [[$class: 'BooleanParameterDefinition', name: 'chocolate', defaultValue: false, description: 'Favorite icecream flavor'], [$class: 'PasswordParameterDefinition', name: 'password', defaultValue: 'defaultPassword', description: 'A password']], submitter:'alice';",
                 "echo(\"after: ${x}\");"),"\n"),true));
 
 
@@ -95,7 +95,7 @@ public class InputStepTest extends Assert {
 
         InputStepExecution is = a.getExecution("Icecream");
         assertEquals("Do you want chocolate?", is.getInput().getMessage());
-        assertEquals(1, is.getInput().getParameters().size());
+        assertEquals(2, is.getInput().getParameters().size());
         assertEquals("alice", is.getInput().getSubmitter());
 
         j.assertEqualDataBoundBeans(is.getInput().getParameters().get(0), new BooleanParameterDefinition("chocolate", false, "Favorite icecream flavor"));
@@ -122,7 +122,8 @@ public class InputStepTest extends Assert {
 
         // make sure 'x' gets assigned to false
         System.out.println(b.getLog());
-        assertTrue(b.getLog().contains("after: false"));
+        // TODO: Should we be masking Secrets?
+        assertTrue(b.getLog().contains("after: [password:defaultPassword, chocolate:false]"));
 
         //make sure the approver name corresponds to the submitter
         ApproverAction action = b.getAction(ApproverAction.class);
@@ -143,9 +144,11 @@ public class InputStepTest extends Assert {
 
         assertEquals("alice", inputSubmittedAction.getApprover());
         Map<String,Object> submittedParams = inputSubmittedAction.getParameters();
-        assertEquals(1, submittedParams.size());
+        assertEquals(2, submittedParams.size());
         assertTrue(submittedParams.containsKey("chocolate"));
         assertEquals(false, submittedParams.get("chocolate"));
+        assertTrue(submittedParams.containsKey("password"));
+        assertEquals("******", submittedParams.get("password"));
     }
 
     @Test
