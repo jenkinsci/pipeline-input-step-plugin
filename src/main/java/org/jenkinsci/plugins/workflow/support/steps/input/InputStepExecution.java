@@ -196,7 +196,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     @SuppressWarnings("unchecked")
     public HttpResponse proceed(Object v) {
         if (v instanceof Map) {
-            return proceed(new HashMap<String,Object>((Map) v);
+            return proceed(new HashMap<String,Object>((Map) v));
         } else if (v == null) {
             return proceed(null);
         } else {
