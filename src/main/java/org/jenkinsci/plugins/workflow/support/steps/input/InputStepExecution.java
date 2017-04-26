@@ -193,6 +193,19 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         return HttpResponses.ok();
     }
 
+    @Deprecated
+    @SuppressWarnings("unchecked")
+    public HttpResponse proceed(Object v) {
+        Map<String,Object> params = new HashMap<>();
+        if (v instanceof Map) {
+            params.putAll((Map)v);
+        } else {
+            params.put("parameter", v);
+        }
+
+        return proceed(params);
+    }
+
     /**
      * Used from the Proceed hyperlink when no parameters are defined.
      */
