@@ -123,7 +123,9 @@ public class InputStepTest extends Assert {
         // make sure 'x' gets assigned to false
         System.out.println(b.getLog());
         // TODO: Should we be masking Secrets?
-        assertTrue(b.getLog().contains("after: [password:defaultPassword, chocolate:false]"));
+        assertTrue(b.getLog().contains("after: "));
+        assertTrue(b.getLog().contains("password:defaultPassword"));
+        assertTrue(b.getLog().contains("chocolate:false"));
 
         //make sure the approver name corresponds to the submitter
         ApproverAction action = b.getAction(ApproverAction.class);
