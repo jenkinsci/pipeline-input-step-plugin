@@ -18,19 +18,23 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
-import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.HashMap;
@@ -40,8 +44,6 @@ import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jenkins.util.Timer;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -157,7 +159,19 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     @RequirePOST
     public HttpResponse doProceed(StaplerRequest request) throws IOException, ServletException, InterruptedException {
         preSubmissionCheck();
-        Map<String,Object> v = parseValue(request);
+        Object params = request.getSubmittedForm().get("parameter");
+        JSONArray v = params != null ? JSONArray.fromObject(params) : null;
+        return proceed(v, request);
+    }
+
+    /**
+     * Processes the acceptance (approval) request.
+     * @param params parameters element value, is array of map that represents the parameters sent in the request
+     * @param request stapler request
+     * @return A HttpResponse object that represents Status code (200) indicating the request succeeded normally.
+     */
+    public HttpResponse proceed(@Nullable JSONArray params, @Nonnull StaplerRequest request) throws ServletException, InterruptedException, IOException {
+        Map<String,Object> v = parseValue(params, request);
         return proceed(v);
     }
 
@@ -234,7 +248,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     /**
      * Check if the current user can submit the input.
      */
-    private void preSubmissionCheck() {
+    public void preSubmissionCheck() {
         if (isSettled())
             throw new Failure("This input has been already given");
         if (!canSubmit()) {
@@ -287,16 +301,12 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         return false;
     }
 
-    /**
-     * Parse the submitted {@link ParameterValue}s
-     */
-    private Map<String,Object> parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
+    private  Map<String,Object> parseValue(JSONArray params, StaplerRequest request) throws ServletException, IOException, InterruptedException {
         Map<String, Object> mapResult = new HashMap<String, Object>();
         List<ParameterDefinition> defs = input.getParameters();
 
-        Object params = request.getSubmittedForm().get("parameter");
-        if (params!=null) {
-            for (Object o : JSONArray.fromObject(params)) {
+        if(params != null) {
+            for (Object o : params) {
                 JSONObject jo = (JSONObject) o;
                 String name = jo.getString("name");
 
