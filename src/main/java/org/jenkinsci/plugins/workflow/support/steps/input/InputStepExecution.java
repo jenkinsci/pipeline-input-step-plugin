@@ -194,17 +194,12 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     @Deprecated
     @SuppressWarnings("unchecked")
     public HttpResponse proceed(Object v) {
-        Map<String, Object> params = new HashMap<>();
         if (v instanceof Map) {
-            params.putAll((Map) v);
-        } else if (v != null) {
-            params.put("parameter", v);
-        }
-
-        if (params.isEmpty()) {
+            return proceed(new HashMap<String,Object>((Map) v);
+        } else if (v == null) {
             return proceed(null);
         } else {
-            return proceed(params);
+            return proceed(Collections.singletonMap("parameter", v));
         }
     }
 
