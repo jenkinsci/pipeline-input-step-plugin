@@ -188,22 +188,24 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         postSettlement();
         getContext().onSuccess(v);
 
-        // TODO: record this decision to FlowNode
-
         return HttpResponses.ok();
     }
 
     @Deprecated
     @SuppressWarnings("unchecked")
     public HttpResponse proceed(Object v) {
-        Map<String,Object> params = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
         if (v instanceof Map) {
-            params.putAll((Map)v);
-        } else {
+            params.putAll((Map) v);
+        } else if (v != null) {
             params.put("parameter", v);
         }
 
-        return proceed(params);
+        if (params.isEmpty()) {
+            return proceed(null);
+        } else {
+            return proceed(params);
+        }
     }
 
     /**
