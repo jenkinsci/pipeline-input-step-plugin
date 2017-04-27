@@ -33,6 +33,7 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -188,9 +189,19 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         postSettlement();
         getContext().onSuccess(v);
 
-        // TODO: record this decision to FlowNode
-
         return HttpResponses.ok();
+    }
+
+    @Deprecated
+    @SuppressWarnings("unchecked")
+    public HttpResponse proceed(Object v) {
+        if (v instanceof Map) {
+            return proceed(new HashMap<String,Object>((Map) v));
+        } else if (v == null) {
+            return proceed(null);
+        } else {
+            return proceed(Collections.singletonMap("parameter", v));
+        }
     }
 
     /**
