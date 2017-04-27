@@ -73,7 +73,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         node.addAction(new PauseAction("Input"));
 
         String baseUrl = '/' + run.getUrl() + getPauseAction().getUrlName() + '/';
-        if (input.getParameters().isEmpty()) {
+        //JENKINS-40594 submitterParameter does not work without at least one actual parameter
+        if (input.getParameters().isEmpty() && input.getSubmitterParameter() == null) {
             String thisUrl = baseUrl + Util.rawEncode(getId()) + '/';
             listener.getLogger().printf("%s%n%s or %s%n", input.getMessage(),
                     POSTHyperlinkNote.encodeTo(thisUrl + "proceedEmpty", input.getOk()),
