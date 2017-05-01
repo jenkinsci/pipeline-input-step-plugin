@@ -74,8 +74,8 @@ public class InputStepRestartTest {
     private void proceed(WorkflowRun b) throws Exception {
         InputAction a = b.getAction(InputAction.class);
         assertNotNull(a);
-        assertEquals(1, a.getExecutions().size());
-        story.j.submit(story.j.createWebClient().getPage(b, a.getUrlName()).getFormByName(a.getExecutions().get(0).getId()), "proceed");
+        assertEquals(1, a.getPendingExecutions().size());
+        story.j.submit(story.j.createWebClient().getPage(b, a.getUrlName()).getFormByName(a.getPendingExecutions().get(0).getId()), "proceed");
     }
 
     private void sanity(WorkflowRun b) throws Exception {

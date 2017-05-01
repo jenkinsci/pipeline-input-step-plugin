@@ -91,7 +91,7 @@ public class InputStepTest extends Assert {
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
-        assertEquals(1, a.getExecutions().size());
+        assertEquals(1, a.getPendingExecutions().size());
 
         InputStepExecution is = a.getExecution("Icecream");
         assertEquals("Do you want chocolate?", is.getInput().getMessage());
@@ -105,7 +105,7 @@ public class InputStepTest extends Assert {
         wc.login("alice");
         HtmlPage p = wc.getPage(b, a.getUrlName());
         j.submit(p.getFormByName(is.getId()), "proceed");
-        assertEquals(0, a.getExecutions().size());
+        assertEquals(0, a.getPendingExecutions().size());
         q.get();
 
         // make sure the valid hyperlink of the approver is created in the build index page
@@ -209,7 +209,7 @@ public class InputStepTest extends Assert {
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
-        assertEquals(1, a.getExecutions().size());
+        assertEquals(1, a.getPendingExecutions().size());
 
         InputStepExecution is = a.getExecution("Icecream");
         assertEquals("Do you want chocolate?", is.getInput().getMessage());
@@ -222,7 +222,7 @@ public class InputStepTest extends Assert {
         assertFalse(console_page.asXml().contains("proceedEmpty"));
         HtmlPage p = wc.getPage(b, a.getUrlName());
         j.submit(p.getFormByName(is.getId()), "proceed");
-        assertEquals(0, a.getExecutions().size());
+        assertEquals(0, a.getPendingExecutions().size());
         q.get();
 
         // make sure 'x' gets 'alice'
@@ -247,7 +247,7 @@ public class InputStepTest extends Assert {
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
-        assertEquals(1, a.getExecutions().size());
+        assertEquals(1, a.getPendingExecutions().size());
 
         InputStepExecution is = a.getExecution("Icecream");
         assertEquals("Do you want chocolate?", is.getInput().getMessage());
@@ -257,7 +257,7 @@ public class InputStepTest extends Assert {
         wc.login("alice");
         HtmlPage p = wc.getPage(b, a.getUrlName());
         j.submit(p.getFormByName(is.getId()), "proceed");
-        assertEquals(0, a.getExecutions().size());
+        assertEquals(0, a.getPendingExecutions().size());
         q.get();
 
         // make sure 'x' gets 'alice'
@@ -282,7 +282,7 @@ public class InputStepTest extends Assert {
 
         try {
             j.submit(p.getFormByName(is.getId()), "abort");
-            assertEquals(0, inputAction.getExecutions().size());
+            assertEquals(0, inputAction.getPendingExecutions().size());
             queueTaskFuture.get();
 
             List<String> log = run.getLog(1000);
