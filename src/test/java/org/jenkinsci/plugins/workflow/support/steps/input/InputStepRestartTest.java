@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import hudson.model.Executor;
 import hudson.model.Result;
 import java.io.File;
 import java.util.ArrayList;
@@ -55,7 +56,7 @@ public class InputStepRestartTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition("input 'paused'"));
+                p.setDefinition(new CpsFlowDefinition("input 'paused'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 story.j.waitForMessage("paused", b);
             }
@@ -78,7 +79,7 @@ public class InputStepRestartTest {
     }
 
     private void sanity(WorkflowRun b) throws Exception {
-        List<PauseAction> pauses = new ArrayList<PauseAction>();
+        List<PauseAction> pauses = new ArrayList<>();
         for (FlowNode n : new FlowGraphWalker(b.getExecution())) {
             pauses.addAll(PauseAction.getPauseActions(n));
         }
@@ -93,7 +94,7 @@ public class InputStepRestartTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition("catchError {input 'paused'}"));
+                p.setDefinition(new CpsFlowDefinition("catchError {input 'paused'}", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 story.j.waitForMessage("paused", b);
             }
@@ -101,7 +102,14 @@ public class InputStepRestartTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowRun b = story.j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
-                b.getExecutor().interrupt();
+                assertNotNull(b);
+                assertTrue(b.isBuilding());
+                Executor executor;
+                while ((executor = b.getExecutor()) == null) {
+                    Thread.sleep(100); // probably a race condition: AfterRestartTask could take a moment to be registered
+                }
+                assertNotNull(executor);
+                executor.interrupt();
                 story.j.assertBuildStatus(Result.ABORTED, story.j.waitForCompletion(b));
                 sanity(b);
             }
