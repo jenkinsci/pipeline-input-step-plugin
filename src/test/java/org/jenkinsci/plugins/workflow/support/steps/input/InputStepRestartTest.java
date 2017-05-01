@@ -104,7 +104,10 @@ public class InputStepRestartTest {
                 WorkflowRun b = story.j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
                 assertNotNull(b);
                 assertTrue(b.isBuilding());
-                Executor executor = b.getExecutor();
+                Executor executor;
+                while ((executor = b.getExecutor()) == null) {
+                    Thread.sleep(100); // probably a race condition: AfterRestartTask could take a moment to be registered
+                }
                 assertNotNull(executor);
                 executor.interrupt();
                 story.j.assertBuildStatus(Result.ABORTED, story.j.waitForCompletion(b));
