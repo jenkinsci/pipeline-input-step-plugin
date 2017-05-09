@@ -288,7 +288,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private boolean canSettle(Authentication a) {
         String submitter = input.getSubmitter();
         if (submitter==null) {
-            if (a!=ANONYMOUS) {
+            if (a!=Jenkins.ANONYMOUS) {
                 return true;
             } else {
                 return false;
