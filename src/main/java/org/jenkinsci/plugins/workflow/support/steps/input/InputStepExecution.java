@@ -287,8 +287,13 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     private boolean canSettle(Authentication a) {
         String submitter = input.getSubmitter();
-        if (submitter==null)
-            return true;
+        if (submitter==null) {
+            if (a!=ANONYMOUS) {
+                return true;
+            } else {
+                return false;
+            }
+        }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
         if (submitters.contains(a.getName()))
             return true;
