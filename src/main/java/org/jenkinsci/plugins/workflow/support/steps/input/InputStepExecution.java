@@ -239,18 +239,26 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         if (isSettled()) {
             throw new Failure("This input has been already given");
         } if (!canCancel() && !canSubmit()) {
-            throw new Failure("You need to be '"+ input.getSubmitter() +"' (or have Job CANCEL permissions) to cancel this.");
+            if (input.getSubmitter() != null) {
+                throw new Failure("You need to be '" + input.getSubmitter() + "' (or have Job/Cancel permissions) to cancel this.");
+            } else {
+                throw new Failure("You need to have Job/Cancel permissions to cancel this.");
+            }
         }
     }
 
     /**
      * Check if the current user can submit the input.
      */
-    private void preSubmissionCheck() {
+    public void preSubmissionCheck() {
         if (isSettled())
             throw new Failure("This input has been already given");
         if (!canSubmit()) {
-            throw new Failure("You need to be "+ input.getSubmitter() +" to submit this");
+            if (input.getSubmitter() != null) {
+                throw new Failure("You need to be " + input.getSubmitter() + " to submit this.");
+            } else {
+                throw new Failure("You need to have Job/Build permissions to submit this.");
+            }
         }
     }
 
@@ -288,7 +296,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private boolean canSettle(Authentication a) {
         String submitter = input.getSubmitter();
         if (submitter==null)
-            return true;
+            return getRun().getParent().hasPermission(Job.BUILD);
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
         if (submitters.contains(a.getName()))
             return true;
