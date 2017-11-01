@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import hudson.model.InvisibleAction;
+import hudson.model.ParametersAction;
 import hudson.model.User;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
@@ -40,9 +41,13 @@ import javax.annotation.Nonnull;
 @ExportedBean
 public class ApproverAction extends InvisibleAction {
 
-    public ApproverAction(String userId) {
+    public ApproverAction(String userId, ParametersAction parameters) {
         this.userId = userId;
+        this.parameters = parameters;
     }
+
+    @Nonnull
+    final private ParametersAction parameters;
 
     @Nonnull
     final private String userId;
@@ -51,6 +56,9 @@ public class ApproverAction extends InvisibleAction {
     public String getUserId() {
         return userId;
     }
+
+    @Exported
+    public ParametersAction getParameters() { return parameters; }
 
     @Restricted(DoNotUse.class)
     public String getUserName() {

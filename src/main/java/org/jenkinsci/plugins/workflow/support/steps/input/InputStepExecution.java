@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
@@ -11,21 +12,25 @@ import hudson.model.Job;
 import hudson.model.ModelObject;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
+import hudson.model.ParametersAction;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.security.ACL;
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
-import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -33,16 +38,14 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jenkins.util.Timer;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -159,8 +162,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     @RequirePOST
     public HttpResponse doProceed(StaplerRequest request) throws IOException, ServletException, InterruptedException {
         preSubmissionCheck();
-        Map<String,Object> v = parseValue(request);
-        return proceed(v);
+        ParametersAction params = parseParameters(request);
+        handleFileParameters(params);
+        return proceed(params);
     }
 
     /**
@@ -170,19 +174,19 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * @param params A map that represents the parameters sent in the request
      * @return A HttpResponse object that represents Status code (200) indicating the request succeeded normally.
      */
-    public HttpResponse proceed(@CheckForNull Map<String,Object> params) {
+    public HttpResponse proceed(@CheckForNull ParametersAction params) {
         User user = User.current();
         String approverId = null;
         if (user != null){
             approverId = user.getId();
-            run.addAction(new ApproverAction(approverId));
+            run.addAction(new ApproverAction(approverId, params));
             listener.getLogger().println("Approved by " + hudson.console.ModelHyperlinkNote.encodeTo(user));
         }
         node.addAction(new InputSubmittedAction(approverId, params));
 
         Object v;
-        if (params != null && params.size() == 1) {
-            v = params.values().iterator().next();
+        if (params != null && params.getParameters().size() == 1) {
+            v = params.getParameters().iterator().next().getValue();
         } else {
             v = params;
         }
@@ -197,11 +201,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     @SuppressWarnings("unchecked")
     public HttpResponse proceed(Object v) {
         if (v instanceof Map) {
-            return proceed(new HashMap<String,Object>((Map) v));
+            return proceed(new ParametersAction((List<ParameterValue>) ((Map) v).values()));
         } else if (v == null) {
             return proceed(null);
         } else {
-            return proceed(Collections.singletonMap("parameter", v));
+            return proceed(new ParametersAction(Collections.singletonList((ParameterValue) v)));
         }
     }
 
@@ -307,11 +311,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         return false;
     }
 
-    /**
-     * Parse the submitted {@link ParameterValue}s
-     */
-    private Map<String,Object> parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
-        Map<String, Object> mapResult = new HashMap<String, Object>();
+    private ParametersAction parseParameters(StaplerRequest request) throws ServletException, IOException, InterruptedException {
+        List<ParameterValue> parameters = new ArrayList<>();
         List<ParameterDefinition> defs = input.getParameters();
 
         Object params = request.getSubmittedForm().get("parameter");
@@ -332,7 +333,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
                 if (v == null) {
                     continue;
                 }
-                mapResult.put(name, convert(name, v));
+
+                parameters.add(v);
             }
         }
 
@@ -340,24 +342,21 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         String valueName = input.getSubmitterParameter();
         if (valueName != null && !valueName.isEmpty()) {
             Authentication a = Jenkins.getAuthentication();
-            mapResult.put(valueName, a.getName());
+            parameters.add(new StringParameterValue(valueName, a.getName()));
         }
 
-        if (mapResult.isEmpty()) {
-            return null;
-        } else {
-            return mapResult;
-        }
+        return new ParametersAction(parameters);
     }
 
-    private Object convert(String name, ParameterValue v) throws IOException, InterruptedException {
-        if (v instanceof FileParameterValue) {
-            FileParameterValue fv = (FileParameterValue) v;
-            FilePath fp = new FilePath(run.getRootDir()).child(name);
-            fp.copyFrom(fv.getFile());
-            return fp;
-        } else {
-            return v.getValue();
+    private void handleFileParameters(ParametersAction params) throws IOException, InterruptedException {
+        EnvVars env = run.getEnvironment(listener);
+        for (ParameterValue v : params.getParameters()) {
+            if (v instanceof FileParameterValue) {
+                FileParameterValue fv = (FileParameterValue) v;
+                FilePath fp = new FilePath(run.getRootDir()).child(v.getName());
+                fp.copyFrom(fv.getFile());
+                env.put(v.getName(), fp.getRemote());
+            }
         }
     }
 

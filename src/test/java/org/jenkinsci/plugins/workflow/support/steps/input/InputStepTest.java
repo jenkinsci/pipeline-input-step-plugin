@@ -30,6 +30,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.google.common.base.Predicate;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.Job;
+import hudson.model.ParameterValue;
 import hudson.model.Result;
 import hudson.model.queue.QueueTaskFuture;
 
@@ -147,10 +148,10 @@ public class InputStepTest extends Assert {
         assertNotNull(inputSubmittedAction);
 
         assertEquals("alice", inputSubmittedAction.getApprover());
-        Map<String,Object> submittedParams = inputSubmittedAction.getParameters();
+        List<ParameterValue> submittedParams = inputSubmittedAction.getParameters().getParameters();
         assertEquals(1, submittedParams.size());
-        assertTrue(submittedParams.containsKey("chocolate"));
-        assertEquals(false, submittedParams.get("chocolate"));
+        assertEquals("chocolate", submittedParams.get(0).getName());
+        assertEquals(false, submittedParams.get(0).getValue());
     }
 
     @Test

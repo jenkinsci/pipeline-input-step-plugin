@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import hudson.model.ParametersAction;
 import org.jenkinsci.plugins.workflow.actions.PersistentAction;
 
 import javax.annotation.CheckForNull;
@@ -36,22 +37,20 @@ public class InputSubmittedAction implements PersistentAction {
     /**
      * Parameters, if any, submitted when the input was approved.
      */
-    private final Map<String,Object> parameters = new LinkedHashMap<>();
+    private final ParametersAction parameters;
 
     /**
      * The user ID of the approving user.
      */
     private final String approver;
 
-    public InputSubmittedAction(String approver, @CheckForNull Map<String,Object> parameters) {
+    public InputSubmittedAction(String approver, ParametersAction parameters) {
         this.approver = approver;
-        if (parameters != null) {
-            this.parameters.putAll(parameters);
-        }
+        this.parameters = parameters;
     }
 
     @Nonnull
-    public Map<String,Object> getParameters() {
+    public ParametersAction getParameters() {
         return parameters;
     }
 
