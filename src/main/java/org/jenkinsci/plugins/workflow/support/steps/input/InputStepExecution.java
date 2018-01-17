@@ -298,7 +298,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         String submitter = input.getSubmitter();
         if (submitter==null)
             return getRun().getParent().hasPermission(Job.BUILD);
-        if (!Jenkins.getActiveInstance().isUseSecurity() || Jenkins.getInstance().hasPermission(Jenkins.ADMINISTER)) {
+        if (!Jenkins.getActiveInstance().isUseSecurity() || Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
             return true;
         }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
