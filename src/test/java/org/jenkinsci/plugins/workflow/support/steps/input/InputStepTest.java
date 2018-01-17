@@ -207,7 +207,9 @@ public class InputStepTest extends Assert {
                 // is listed as the submitter.
                         grant(Jenkins.READ, Job.READ).everywhere().to("bob").
                 // Give "charlie" basic privs.  That's normally not enough to Job.CANCEL, and isn't listed as submiter.
-                        grant(Jenkins.READ, Job.READ).everywhere().to("charlie"));
+                        grant(Jenkins.READ, Job.READ).everywhere().to("charlie").
+                // Add an admin user that should be able to approve the job regardless)
+                        grant(Jenkins.ADMINISTER).everywhere().to("admin"));
 
         final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes', submitter: 'alice,bob'", true));
@@ -215,6 +217,7 @@ public class InputStepTest extends Assert {
         runAndAbort(webClient, foo, "alice", true);   // alice should work coz she's declared as 'submitter'
         runAndAbort(webClient, foo, "bob", true);    // bob should work coz he's declared as 'submitter'
         runAndAbort(webClient, foo, "charlie", false); // charlie shouldn't work coz he's not declared as 'submitter' and doesn't have Job.CANCEL privs
+        runAndContinue(webClient, foo, "admin", true); // admin should work because... they can do anything
     }
 
     @Test

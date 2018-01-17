@@ -16,6 +16,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.Permission;
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
@@ -282,7 +283,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     private boolean canCancel() {
-        return getRun().getParent().hasPermission(Job.CANCEL);
+        return !Jenkins.getInstance().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
     }
 
     private boolean canSubmit() {
@@ -297,6 +298,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         String submitter = input.getSubmitter();
         if (submitter==null)
             return getRun().getParent().hasPermission(Job.BUILD);
+        if (!Jenkins.getInstance().isUseSecurity() || Jenkins.getInstance().hasPermission(Jenkins.ADMINISTER)) {
+            return true;
+        }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
         if (submitters.contains(a.getName()))
             return true;
