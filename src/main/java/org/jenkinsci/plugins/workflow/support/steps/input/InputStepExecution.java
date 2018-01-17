@@ -283,7 +283,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     private boolean canCancel() {
-        return !Jenkins.getInstance().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
+        return !Jenkins.getActiveInstance().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
     }
 
     private boolean canSubmit() {
@@ -298,7 +298,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         String submitter = input.getSubmitter();
         if (submitter==null)
             return getRun().getParent().hasPermission(Job.BUILD);
-        if (!Jenkins.getInstance().isUseSecurity() || Jenkins.getInstance().hasPermission(Jenkins.ADMINISTER)) {
+        if (!Jenkins.getActiveInstance().isUseSecurity() || Jenkins.getInstance().hasPermission(Jenkins.ADMINISTER)) {
             return true;
         }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
