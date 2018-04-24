@@ -301,8 +301,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         if (!Jenkins.getActiveInstance().isUseSecurity() || Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
             return true;
         }
-        final Set<String> submitters = Sets.newHashSet(submitter.split(","));
-        if (submitters.contains(a.getName()))
+        final Set<String> submitters = Sets.newHashSet(submitter.toLowerCase().split(","));
+        if (submitters.contains(a.getName().toLowerCase()))
             return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
             if (submitters.contains(ga.getAuthority()))
