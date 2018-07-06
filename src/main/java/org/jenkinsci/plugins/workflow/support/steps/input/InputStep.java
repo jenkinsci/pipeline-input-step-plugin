@@ -55,7 +55,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     @DataBoundConstructor
     public InputStep(String message) {
         if (message==null)
-            message = "Pipeline has paused and needs your input before proceeding";
+            message = Messages.pipeline_need_input();
         this.message = message;
     }
 
@@ -162,7 +162,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
         @Override
         public String getDisplayName() {
-            return "Wait for interactive input";
+            return Messages.wait_for_interactive_input();
         }
     }
 }

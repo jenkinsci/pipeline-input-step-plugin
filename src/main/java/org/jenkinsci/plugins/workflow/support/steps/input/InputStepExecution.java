@@ -16,7 +16,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.security.ACL;
-import hudson.security.Permission;
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
@@ -79,11 +78,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             String thisUrl = baseUrl + Util.rawEncode(getId()) + '/';
             listener.getLogger().printf("%s%n%s or %s%n", input.getMessage(),
                     POSTHyperlinkNote.encodeTo(thisUrl + "proceedEmpty", input.getOk()),
-                    POSTHyperlinkNote.encodeTo(thisUrl + "abort", "Abort"));
+                    POSTHyperlinkNote.encodeTo(thisUrl + "abort", Messages.Abort()));
         } else {
             // TODO listener.hyperlink(…) does not work; why?
             // TODO would be even cooler to embed the parameter form right in the build log (hiding it after submission)
-            listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, "Input requested"));
+            listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, Messages.input_requested()));
         }
         return false;
     }
