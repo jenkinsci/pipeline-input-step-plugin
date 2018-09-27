@@ -14,7 +14,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -55,7 +54,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     @DataBoundConstructor
     public InputStep(String message) {
         if (message==null)
-            message = Messages.pipeline_need_input();
+            message = "Pipeline has paused and needs your input before proceeding";
         this.message = message;
     }
 
@@ -100,7 +99,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
      * Caption of the OK button.
      */
     public String getOk() {
-        return ok!=null ? ok : "Proceed";
+        return ok!=null ? ok : Messages.proceed();
     }
 
     @DataBoundSetter public void setOk(String ok) {

@@ -82,7 +82,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         } else {
             // TODO listener.hyperlink(…) does not work; why?
             // TODO would be even cooler to embed the parameter form right in the build log (hiding it after submission)
-            listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, Messages.input_requested()));
+            listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, "Input requested"));
         }
         return false;
     }
