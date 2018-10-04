@@ -67,7 +67,7 @@ public class InputSubmittedAction implements PersistentAction {
 
     @Override
     public String getDisplayName() {
-        return "Input Submitted";
+        return Messages.input_submitted();
     }
 
     @Override

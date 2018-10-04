@@ -2,7 +2,7 @@
   Displays the console output
 -->
 <?jelly escape-by-default='true'?>
-<st:compress xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:flow="/lib/flow">
+<st:compress xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout">
   <l:layout title="${it.displayName} : ${it.run}">
     <st:include it="${it.run}" page="sidepanel.jelly" />
     <l:main-panel>
