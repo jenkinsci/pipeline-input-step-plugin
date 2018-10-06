@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import hudson.model.User;
-import java.io.Serializable;
 import javax.annotation.CheckForNull;
 import jenkins.model.CauseOfInterruption;
 import org.kohsuke.stapler.export.Exported;
@@ -40,9 +39,9 @@ public final class Rejection extends CauseOfInterruption {
     @Override public String getShortDescription() {
         User u = getUser();
         if (u != null) {
-            return "Rejected by " + u.getDisplayName();
+            return Messages.Rejected_by(u.getDisplayName());
         } else {
-            return "Rejected";
+            return Messages.Rejected();
         }
     }
 
