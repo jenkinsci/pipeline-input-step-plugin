@@ -36,6 +36,7 @@ import hudson.model.queue.QueueTaskFuture;
 
 import java.util.List;
 
+import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -212,9 +213,10 @@ public class InputStepTest extends Assert {
                         grant(Jenkins.ADMINISTER).everywhere().to("admin"));
 
         final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes', submitter: 'alice,bob'", true));
+        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes', submitter: 'alice,BoB'", true));
 
         runAndAbort(webClient, foo, "alice", true);   // alice should work coz she's declared as 'submitter'
+        assertEquals(IdStrategy.CASE_INSENSITIVE, j.jenkins.getSecurityRealm().getUserIdStrategy());
         runAndAbort(webClient, foo, "bob", true);    // bob should work coz he's declared as 'submitter'
         runAndContinue(webClient, foo, "bob", true);    // bob should work coz he's declared as 'submitter'
         runAndAbort(webClient, foo, "charlie", false); // charlie shouldn't work coz he's not declared as 'submitter' and doesn't have Job.CANCEL privs
