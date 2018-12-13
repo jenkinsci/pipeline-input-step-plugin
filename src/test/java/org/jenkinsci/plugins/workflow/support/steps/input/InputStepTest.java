@@ -216,6 +216,7 @@ public class InputStepTest extends Assert {
 
         runAndAbort(webClient, foo, "alice", true);   // alice should work coz she's declared as 'submitter'
         runAndAbort(webClient, foo, "bob", true);    // bob should work coz he's declared as 'submitter'
+        runAndContinue(webClient, foo, "bob", true);    // bob should work coz he's declared as 'submitter'
         runAndAbort(webClient, foo, "charlie", false); // charlie shouldn't work coz he's not declared as 'submitter' and doesn't have Job.CANCEL privs
         runAndContinue(webClient, foo, "admin", true); // admin should work because... they can do anything
     }
