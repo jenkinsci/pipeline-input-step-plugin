@@ -4,12 +4,12 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.26</version>
+        <version>3.28</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>pipeline-input-step</artifactId>
-    <version>2.9-SNAPSHOT</version>
+    <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Input Step</name>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Pipeline+Input+Step+Plugin</url>
@@ -23,7 +23,7 @@
         <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
-      <tag>HEAD</tag>
+      <tag>${scmTag}</tag>
   </scm>
     <repositories>
         <repository>
@@ -38,7 +38,10 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <jenkins.version>1.642.4</jenkins.version>
+        <revision>2.9</revision>
+        <changelist>-SNAPSHOT</changelist>
+        <jenkins.version>2.60.3</jenkins.version>
+        <java.level>8</java.level>
     </properties>
     <dependencies>
         <dependency>
@@ -79,6 +82,12 @@
             <artifactId>structs</artifactId>
             <version>1.5</version>
             <scope>test</scope>
+            <exclusions> <!-- coming from the core - RequireUpperBoundDeps fix -->
+                <exclusion>
+                    <groupId>org.jenkins-ci</groupId>
+                    <artifactId>annotation-indexer</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
