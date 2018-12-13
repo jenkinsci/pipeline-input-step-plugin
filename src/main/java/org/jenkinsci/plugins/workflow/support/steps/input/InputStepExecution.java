@@ -16,8 +16,10 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.SecurityRealm;
 import hudson.security.Permission;
 import hudson.util.HttpResponses;
+import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -302,11 +304,32 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             return true;
         }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
-        if (submitters.contains(a.getName()))
+        if (isMemberOf(a.getName(), submitters))
             return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
-            if (submitters.contains(ga.getAuthority()))
+            if (isMemberOf(ga.getAuthority(), submitters))
                 return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if the provided userId is contained in the submitters list, using {@link SecurityRealm#getUserIdStrategy()} comparison algorithm.
+     * Main goal is to respect here the case sensitivity settings of the current security realm
+     * (which default behavior is case insensitivity).
+     *
+     * @param userId the id of the user if it is matching one of the submitters using {@link IdStrategy#equals(String, String)}
+     * @param submitters the list of authorized submitters
+     * @return true is userId was found in submitters, false if not.
+     *
+     * @see {@link jenkins.model.IdStrategy#CASE_INSENSITIVE}.
+     */
+    private boolean isMemberOf(String userId, Set<String> submitters) {
+        final IdStrategy userIdStrategy = Jenkins.getActiveInstance().getSecurityRealm().getUserIdStrategy();
+        for (String submitter : submitters) {
+            if (userIdStrategy.equals(userId, submitter)) {
+                return true;
+            }
         }
         return false;
     }
