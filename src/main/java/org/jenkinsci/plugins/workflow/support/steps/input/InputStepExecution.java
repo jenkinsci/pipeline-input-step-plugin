@@ -304,10 +304,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             return true;
         }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
-        if (isMemberOf(a.getName(), submitters))
+        final SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
+        if (isMemberOf(a.getName(), submitters, securityRealm.getUserIdStrategy()))
             return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
-            if (isMemberOf(ga.getAuthority(), submitters))
+            if (isMemberOf(ga.getAuthority(), submitters, securityRealm.getGroupIdStrategy()))
                 return true;
         }
         return false;
@@ -320,14 +321,14 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      *
      * @param userId the id of the user if it is matching one of the submitters using {@link IdStrategy#equals(String, String)}
      * @param submitters the list of authorized submitters
+     * @param idStrategy the idStrategy impl to use for comparison
      * @return true is userId was found in submitters, false if not.
      *
      * @see {@link jenkins.model.IdStrategy#CASE_INSENSITIVE}.
      */
-    private boolean isMemberOf(String userId, Set<String> submitters) {
-        final IdStrategy userIdStrategy = Jenkins.getActiveInstance().getSecurityRealm().getUserIdStrategy();
+    private boolean isMemberOf(String userId, Set<String> submitters, IdStrategy idStrategy) {
         for (String submitter : submitters) {
-            if (userIdStrategy.equals(userId, submitter)) {
+            if (idStrategy.equals(userId, submitter)) {
                 return true;
             }
         }
