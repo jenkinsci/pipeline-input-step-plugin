@@ -25,6 +25,7 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -328,7 +329,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     private boolean isMemberOf(String userId, Set<String> submitters, IdStrategy idStrategy) {
         for (String submitter : submitters) {
-            if (idStrategy.equals(userId, submitter)) {
+            if (idStrategy.equals(userId, StringUtils.trim(submitter))) {
                 return true;
             }
         }
