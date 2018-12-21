@@ -39,9 +39,9 @@ public final class Rejection extends CauseOfInterruption {
     @Override public String getShortDescription() {
         User u = getUser();
         if (u != null) {
-            return Messages.Rejected_by(u.getDisplayName());
+            return Messages.rejected_by(u.getDisplayName());
         } else {
-            return Messages.Rejected();
+            return Messages.rejected();
         }
     }
 
