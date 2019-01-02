@@ -111,7 +111,7 @@ public class InputAction implements RunAction2 {
         if (ids == null || ids.isEmpty()) {
             return null;
         } else {
-            return "Paused for Input";
+            return Messages.paused_for_input();
         }
     }
 
