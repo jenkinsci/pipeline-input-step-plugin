@@ -44,7 +44,6 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
-import org.jvnet.hudson.test.recipes.LocalData;
 
 public class InputStepRestartTest {
 
@@ -111,23 +110,6 @@ public class InputStepRestartTest {
                 assertNotNull(executor);
                 executor.interrupt();
                 story.j.assertBuildStatus(Result.ABORTED, story.j.waitForCompletion(b));
-                sanity(b);
-            }
-        });
-    }
-
-    @Issue("JENKINS-25889")
-    @LocalData // from 1.4.2
-    @Test public void oldFlow() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
-                assertNotNull(p);
-                WorkflowRun b = p.getLastBuild();
-                assertNotNull(b);
-                assertEquals(1, b.getNumber());
-                proceed(b);
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
                 sanity(b);
             }
         });
