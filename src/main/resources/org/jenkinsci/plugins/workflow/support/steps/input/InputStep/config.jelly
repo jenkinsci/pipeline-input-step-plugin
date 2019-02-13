@@ -35,7 +35,6 @@ THE SOFTWARE.
         <f:entry field="ok" title="${%OK Button Caption}">
             <f:textbox/>
         </f:entry>
-        </f:entry>
         <f:entry field="abort" title="${%Abort Button Caption}">
             <f:textbox/>
         </f:entry>
