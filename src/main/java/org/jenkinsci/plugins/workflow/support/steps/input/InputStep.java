@@ -51,6 +51,11 @@ public class InputStep extends AbstractStepImpl implements Serializable {
      */
     private String ok;
 
+    /**
+     * Caption of the Abort button.
+     */
+    private String abort;
+
     @DataBoundConstructor
     public InputStep(String message) {
         if (message==null)
@@ -104,6 +109,17 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
     @DataBoundSetter public void setOk(String ok) {
         this.ok = Util.fixEmptyAndTrim(ok);
+    }
+
+    /**
+     * Caption of the Abort button.
+     */
+    public String getAbort() {
+      return ok!=null ? abort : Messages.abort();
+    }
+
+    @DataBoundSetter public void setAbort(String abort) {
+      this.abort = Util.fixEmptyAndTrim(abort);
     }
 
     public List<ParameterDefinition> getParameters() {

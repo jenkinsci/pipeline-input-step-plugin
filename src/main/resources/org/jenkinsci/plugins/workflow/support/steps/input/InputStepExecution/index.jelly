@@ -12,7 +12,7 @@
       </j:forEach>
       <f:block>
         <f:submit value="${it.input.ok}" name="proceed"/>
-        <f:submit value="${%Abort}" name="abort"/>
+        <f:submit value="${it.input.abort}" name="abort"/>
       </f:block>
     </f:form>
   </j:if>

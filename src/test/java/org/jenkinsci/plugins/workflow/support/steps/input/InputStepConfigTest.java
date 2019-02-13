@@ -45,6 +45,7 @@ public class InputStepConfigTest {
         assertEquals(s1.getId(), s2.getId());
         assertEquals(s1.getParameters(), s2.getParameters());
         assertEquals(s1.getOk(), s2.getOk());
+        assertEquals(s1.getAbort(), s2.getAbort());
         assertEquals(s1.getSubmitter(), s2.getSubmitter());
     }
 
