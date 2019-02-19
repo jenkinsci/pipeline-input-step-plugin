@@ -363,4 +363,30 @@ public class InputStepTest extends Assert {
         j.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0).get());
     }
 
+  @Test
+  @Issue("JENKINS-51490")
+  public void test_abort_parameter() throws Exception {
+    //set up dummy security real
+    j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+    // job setup
+    WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+    foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
+        "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', " +
+            "abort: 'Do not purchase icecream', submitterParameter: 'alice';",
+        "echo(\"after: ${x}\");"),"\n"),true));
+
+    // get the build going, and wait until workflow pauses
+    QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
+    WorkflowRun b = q.getStartCondition().get();
+    j.waitForMessage("input", b);
+
+    // make sure we are pausing at the right state that reflects what we wrote in the program
+    InputAction a = b.getAction(InputAction.class);
+    assertEquals(1, a.getExecutions().size());
+
+    InputStepExecution is = a.getExecution("Icecream");
+    assertEquals("Do not purchase icecream", is.getInput().getAbort());
+
+  }
+
 }
