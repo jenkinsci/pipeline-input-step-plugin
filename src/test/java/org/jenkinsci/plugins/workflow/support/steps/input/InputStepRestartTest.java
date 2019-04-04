@@ -114,5 +114,24 @@ public class InputStepRestartTest {
             }
         });
     }
+    
+    @Test public void restartWithParallel() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("parallel '1': {}, '2': {}\ninput 'paused'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                story.j.waitForMessage("paused", b);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowRun b = story.j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
+                proceed(b);
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                sanity(b);
+            }
+        });
+    }
 
 }
