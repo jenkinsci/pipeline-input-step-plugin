@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
@@ -88,6 +89,20 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             // TODO would be even cooler to embed the parameter form right in the build log (hiding it after submission)
             listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, "Input requested"));
         }
+
+        InputStep inputStep = this.getInput();
+        Jenkins.get().getExtensionList(InputExtension.class).forEach(input -> {
+            String name = input.getName();
+
+            try {
+                input.input(inputStep, run);
+
+                listener.getLogger().printf("Notification for %s succeed.", name);
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, String.format("Notification for %s occurred error.", name), e);
+            }
+        });
+
         return false;
     }
 
