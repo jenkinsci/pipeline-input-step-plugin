@@ -10,7 +10,7 @@ public interface InputExtension extends ExtensionPoint {
      * @param inputStep instance of InputStep
      * @param run Current building run instance
      */
-    void input(InputStep inputStep, Run run);
+    void notifyInput(InputStep inputStep, Run run);
 
     /**
      * Should be unique, for distinguish different extension.
