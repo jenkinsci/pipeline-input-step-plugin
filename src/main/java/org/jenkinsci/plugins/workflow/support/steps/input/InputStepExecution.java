@@ -93,9 +93,13 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         InputStep inputStep = this.getInput();
         Jenkins.get().getExtensionList(InputExtension.class).forEach(input -> {
             String name = input.getName();
+            if(StringUtils.isEmpty(name)) {
+                // make sure we have a name
+                name = input.getClass().getSimpleName();
+            }
 
             try {
-                input.input(inputStep, run);
+                input.notifyInput(inputStep, run);
 
                 listener.getLogger().printf("Notification for %s succeed.", name);
             } catch (Exception e) {
