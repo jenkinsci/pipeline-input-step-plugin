@@ -94,22 +94,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, "Input requested"));
         }
 
-        InputStep inputStep = this.getInput();
-        Jenkins.get().getExtensionList(InputExtension.class).forEach(input -> {
-            String name = input.getName();
-            if(StringUtils.isEmpty(name)) {
-                // make sure we have a name
-                name = input.getClass().getSimpleName();
-            }
-
-            try {
-                input.notifyInput(inputStep, run);
-
-                listener.getLogger().printf("Notification for %s succeed.", name);
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, String.format("Notification for %s occurred error.", name), e);
-            }
-        });
+        // notify this input action is started
+        notifyInput(InputExtension.NotifyEvent.START);
 
         return false;
     }
@@ -205,6 +191,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
         node.addAction(new InputSubmittedAction(approverId, params));
 
+        // notify this input action will proceed
+        notifyInput(InputExtension.NotifyEvent.PROCEED);
+
         Object v;
         if (params != null && params.size() == 1) {
             v = params.values().iterator().next();
@@ -248,6 +237,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         preAbortCheck();
 
         FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
+
+        // notify this input action was abort
+        notifyInput(InputExtension.NotifyEvent.ABORT);
+
         outcome = new Outcome(null,e);
         postSettlement();
         getContext().onFailure(e);
@@ -255,6 +248,27 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         // TODO: record this decision to FlowNode
 
         return HttpResponses.ok();
+    }
+
+    private void notifyInput(InputExtension.NotifyEvent notifyEvent) {
+        InputStep inputStep = this.getInput();
+        Jenkins.get().getExtensionList(InputExtension.class).forEach(input -> {
+            final String extensionName = input.getName();
+
+            User currentUser = User.current();
+            String userID = "anonymous user";
+            if(currentUser != null) {
+                userID = currentUser.getId();
+            }
+
+            try {
+                input.notifyInput(inputStep, run, userID, notifyEvent);
+
+                listener.getLogger().printf("Notification for %s succeed.", extensionName);
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, String.format("Notification for %s occurred error.", extensionName), e);
+            }
+        });
     }
 
     /**
