@@ -256,7 +256,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             final String extensionName = input.getName();
 
             User currentUser = User.current();
-            String userID = "anonymous user";
+            String userID = "anonymous";
             if(currentUser != null) {
                 userID = currentUser.getId();
             }
