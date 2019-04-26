@@ -4,7 +4,6 @@ import com.cloudbees.plugins.credentials.CredentialsParameterValue;
 import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
@@ -21,7 +20,6 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.security.SecurityRealm;
-import hudson.security.Permission;
 import hudson.util.HttpResponses;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
@@ -95,7 +93,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
 
         // notify this input action is started
-        notifyInput(InputExtension.NotifyEvent.START);
+        notifyInput(InputExtension.InputEvent.STARTED);
 
         return false;
     }
@@ -192,7 +190,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         node.addAction(new InputSubmittedAction(approverId, params));
 
         // notify this input action will proceed
-        notifyInput(InputExtension.NotifyEvent.PROCEED);
+        notifyInput(InputExtension.InputEvent.PROCEEDED);
 
         Object v;
         if (params != null && params.size() == 1) {
@@ -239,7 +237,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
 
         // notify this input action was abort
-        notifyInput(InputExtension.NotifyEvent.ABORT);
+        notifyInput(InputExtension.InputEvent.ABORTED);
 
         outcome = new Outcome(null,e);
         postSettlement();
@@ -250,21 +248,21 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         return HttpResponses.ok();
     }
 
-    private void notifyInput(InputExtension.NotifyEvent notifyEvent) {
+    private void notifyInput(InputExtension.InputEvent inputEvent) {
         InputStep inputStep = this.getInput();
         Jenkins.get().getExtensionList(InputExtension.class).forEach(input -> {
-            final String extensionName = input.getName();
+            final String extensionName = input.getClass().getSimpleName();
 
             User currentUser = User.current();
-            String userID = "anonymous";
+            final String userID;
             if(currentUser != null) {
                 userID = currentUser.getId();
+            } else {
+                userID = "anonymous";
             }
 
             try {
-                input.notifyInput(inputStep, run, userID, notifyEvent);
-
-                listener.getLogger().printf("Notification for %s succeed.", extensionName);
+                input.notifyInput(inputStep, run, userID, listener, inputEvent);
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, String.format("Notification for %s occurred error.", extensionName), e);
             }

@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import hudson.ExtensionPoint;
 import hudson.model.Run;
+import hudson.model.TaskListener;
 
 public interface InputExtension extends ExtensionPoint {
     /**
@@ -10,24 +11,17 @@ public interface InputExtension extends ExtensionPoint {
      * @param inputStep Instance of InputStep
      * @param run Current building run instance
      * @param userID Id of a user who triggered the action
-     * @param notifyEvent Event type of notification
+     * @param listener Listener could let you print some logs
+     * @param inputEvent Event type of notification
      */
-    void notifyInput(InputStep inputStep, Run run, String userID, NotifyEvent notifyEvent);
+    void notifyInput(InputStep inputStep, Run run, String userID, TaskListener listener, InputEvent inputEvent);
 
-    /**
-     * Should be unique, for distinguish different extension.
-     * @return the name of current extension instance
-     */
-    default String getName() {
-        return this.getClass().getSimpleName();
-    }
-
-    enum NotifyEvent {
+    enum InputEvent {
         /** waiting action from a user */
-        START,
+        STARTED,
         /** continue the pipeline */
-        PROCEED,
+        PROCEEDED,
         /** abort the waiting */
-        ABORT
+        ABORTED
     }
 }
