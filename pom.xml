@@ -39,7 +39,7 @@
     <properties>
         <revision>2.11</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.121.1</jenkins.version>
+        <jenkins.version>2.181-rc28392.03fa59130027</jenkins.version>
         <java.level>8</java.level>
         <workflow-step-api.version>2.18</workflow-step-api.version>
     </properties>
@@ -78,6 +78,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
+            <artifactId>workflow-durable-task-step</artifactId>
+            <version>2.29</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
             <version>1.17</version>
@@ -100,6 +106,18 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
             <version>1.50</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials</artifactId>
+            <version>2.2.1-rc621.e387343cddb9</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials-binding</artifactId>
+            <version>1.18</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

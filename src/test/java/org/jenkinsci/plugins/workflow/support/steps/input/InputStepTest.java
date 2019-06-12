@@ -24,21 +24,29 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.CredentialsStore;
+import com.cloudbees.plugins.credentials.domains.Domain;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.google.common.base.Predicate;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.Job;
 import hudson.model.Result;
+import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
 
 
-import java.util.List;
-
+import hudson.security.ACL;
+import hudson.security.ACLContext;
+import hudson.util.Secret;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -55,6 +63,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.UUID;
 
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
@@ -363,4 +372,40 @@ public class InputStepTest extends Assert {
         j.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0).get());
     }
 
+    @Issue("JENKINS-47699")
+    @Test
+    public void userScopedCredentials() throws Exception {
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        final User alpha = User.getOrCreateByIdOrFullName("alpha");
+        final String credentialsId = UUID.randomUUID().toString();
+        final String secret = "correct horse battery staple";
+        final CredentialsStore userCreds = CredentialsProvider.lookupStores(alpha).iterator().next();
+        try (ACLContext ignored = ACL.as(alpha)) {
+            userCreds.addCredentials(Domain.global(), new StringCredentialsImpl(CredentialsScope.USER, credentialsId, null, Secret.fromString(secret)));
+        }
+        final WorkflowJob p = j.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("node {\n" +
+                "  input id: 'UserCreds', message: '', parameters: [credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl', defaultValue: '', description: '', name: 'credentialsId', required: true)]\n" +
+                "  withCredentials([string(credentialsId: '${credentialsId}', variable: 'credentials')]) {\n" +
+                "    if (credentials != '" + secret + "') {\n" +
+                "      error 'invalid credentials'\n" +
+                "    }\n" +
+                "  }\n" +
+                "}", true));
+        final QueueTaskFuture<WorkflowRun> runFuture = p.scheduleBuild2(0);
+        assertNotNull(runFuture);
+        final WorkflowRun run = runFuture.getStartCondition().get();
+        CpsFlowExecution execution = (CpsFlowExecution) run.getExecutionPromise().get();
+        while (run.getAction(InputAction.class) == null) {
+            execution.waitForSuspension();
+        }
+
+        final JenkinsRule.WebClient wc = j.createWebClient();
+        wc.login("alpha");
+        final InputAction action = run.getAction(InputAction.class);
+        final HtmlForm form = wc.getPage(run, action.getUrlName()).getFormByName(action.getExecution("UserCreds").getId());
+        form.getSelectByName("_.value").setSelectedAttribute(credentialsId, true);
+        j.submit(form, "proceed");
+        j.assertBuildStatusSuccess(runFuture);
+    }
 }

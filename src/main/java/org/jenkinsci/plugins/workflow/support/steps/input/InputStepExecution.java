@@ -17,10 +17,10 @@ import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.SecurityRealm;
-import hudson.security.Permission;
 import hudson.util.HttpResponses;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
+import jenkins.model.UserInputAction;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
@@ -37,6 +37,8 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -342,6 +344,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private Map<String,Object> parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
         Map<String, Object> mapResult = new HashMap<String, Object>();
         List<ParameterDefinition> defs = input.getParameters();
+        List<ParameterValue> vals = new ArrayList<>(defs.size());
 
         Object params = request.getSubmittedForm().get("parameter");
         if (params!=null) {
@@ -349,21 +352,29 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
                 JSONObject jo = (JSONObject) o;
                 String name = jo.getString("name");
 
-                ParameterDefinition d=null;
-                for (ParameterDefinition def : defs) {
-                    if (def.getName().equals(name))
-                        d = def;
-                }
-                if (d == null)
-                    throw new IllegalArgumentException("No such parameter definition: " + name);
-
+                ParameterDefinition d = defs.stream()
+                        .filter(def -> def.getName().equals(name))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("No such parameter definition: " + name));
                 ParameterValue v = d.createValue(request, jo);
                 if (v == null) {
                     continue;
                 }
+
+                vals.add(v);
                 mapResult.put(name, convert(name, v));
             }
         }
+        Map<String, Collection<ParameterValue>> userInputValues = new HashMap<>();
+        userInputValues.put(Jenkins.getAuthentication().getName(), vals);
+        UserInputAction existingInput = run.getAction(UserInputAction.class);
+        if (existingInput != null) {
+            for (Map.Entry<String, Collection<ParameterValue>> entry : existingInput) {
+                userInputValues.computeIfAbsent(entry.getKey(), ignored -> new ArrayList<>()).addAll(entry.getValue());
+            }
+        }
+        run.addOrReplaceAction(new UserInputAction(userInputValues));
+
 
         // If a destination value is specified, push the submitter to it.
         String valueName = input.getSubmitterParameter();
