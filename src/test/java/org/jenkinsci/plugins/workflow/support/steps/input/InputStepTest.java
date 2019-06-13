@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import com.cloudbees.plugins.credentials.CredentialsParameterDefinition;
+import com.cloudbees.plugins.credentials.CredentialsParameterValue;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
@@ -33,7 +35,11 @@ import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.google.common.base.Predicate;
 import hudson.model.BooleanParameterDefinition;
+import hudson.model.Cause;
+import hudson.model.CauseAction;
 import hudson.model.Job;
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Result;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
@@ -378,15 +384,22 @@ public class InputStepTest extends Assert {
     public void userScopedCredentials() throws Exception {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         final User alpha = User.getOrCreateByIdOrFullName("alpha");
-        final User beta = User.getOrCreateByIdOrFullName("beta");
-        final User gamma = User.getOrCreateByIdOrFullName("gamma");
         final String alphaSecret = "correct horse battery staple";
         final String alphaId = registerUserSecret(alpha, alphaSecret);
+        final User beta = User.getOrCreateByIdOrFullName("beta");
         final String betaSecret = "hello world bad password";
         final String betaId = registerUserSecret(beta, betaSecret);
+        final User gamma = User.getOrCreateByIdOrFullName("gamma");
         final String gammaSecret = "proton mass decay string";
         final String gammaId = registerUserSecret(gamma, gammaSecret);
+        final User delta = User.getOrCreateByIdOrFullName("delta");
+        final String deltaSecret = "fundamental arithmetic theorem prover";
+        final String deltaId = registerUserSecret(delta, deltaSecret);
+
         final WorkflowJob p = j.createProject(WorkflowJob.class);
+        p.addProperty(new ParametersDefinitionProperty(
+                new CredentialsParameterDefinition("deltaId", null, null, StringCredentialsImpl.class.getName(), true)
+        ));
         p.setDefinition(new CpsFlowDefinition("node {\n" +
                 stringCredentialsInput("AlphaCreds", "alphaId") +
                 stringCredentialsInput("BetaCreds", "betaId") +
@@ -394,24 +407,36 @@ public class InputStepTest extends Assert {
                 "  withCredentials([\n" +
                 "      string(credentialsId: '${alphaId}', variable: 'alphaSecret'),\n" +
                 "      string(credentialsId: '${betaId}', variable: 'betaSecret'),\n" +
-                "      string(credentialsId: '${gammaId}', variable: 'gammaSecret')\n" +
+                "      string(credentialsId: '${gammaId}', variable: 'gammaSecret'),\n" +
+                "      string(credentialsId: '${deltaId}', variable: 'deltaSecret')\n" +
                 "  ]) {\n" +
                 "    if (alphaSecret != '" + alphaSecret + "') {\n" +
                 "      error 'invalid alpha credentials'\n" +
                 "    }\n" +
                 "    if (betaSecret != '" + betaSecret + "') {\n" +
-                "      error 'invalid alpha credentials'\n" +
+                "      error 'invalid beta credentials'\n" +
                 "    }\n" +
                 "    if (gammaSecret != '" + gammaSecret + "') {\n" +
-                "      error 'invalid alpha credentials'\n" +
+                "      error 'invalid gamma credentials'\n" +
+                "    }\n" +
+                "    if (deltaSecret != '" + deltaSecret + "') {\n" +
+                "      error 'invalid delta credentials'\n" +
                 "    }\n" +
                 "  }\n" +
                 "}", true));
-        final QueueTaskFuture<WorkflowRun> runFuture = p.scheduleBuild2(0);
-        assertNotNull(runFuture);
-        final WorkflowRun run = runFuture.waitForStart();
-        CpsFlowExecution execution = (CpsFlowExecution) run.getExecutionPromise().get();
+
+        // schedule a parameterized build
+        final QueueTaskFuture<WorkflowRun> runFuture;
+        try (ACLContext ignored = ACL.as(delta)) {
+            runFuture = p.scheduleBuild2(0,
+                    new CauseAction(new Cause.UserIdCause()),
+                    new ParametersAction(new CredentialsParameterValue("deltaId", deltaId, null))
+            );
+            assertNotNull(runFuture);
+        }
         final JenkinsRule.WebClient wc = j.createWebClient();
+        final WorkflowRun run = runFuture.waitForStart();
+        final CpsFlowExecution execution = (CpsFlowExecution) run.getExecutionPromise().get();
 
         selectUserCredentials(wc, run, execution, alphaId, "alpha", "AlphaCreds");
         selectUserCredentials(wc, run, execution, betaId, "beta", "BetaCreds");
