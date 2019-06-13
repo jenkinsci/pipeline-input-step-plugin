@@ -405,10 +405,10 @@ public class InputStepTest extends Assert {
                 stringCredentialsInput("BetaCreds", "betaId") +
                 stringCredentialsInput("GammaCreds", "gammaId") +
                 "  withCredentials([\n" +
-                "      string(credentialsId: '${alphaId}', variable: 'alphaSecret'),\n" +
+                "      string(credentialsId: env.alphaId, variable: 'alphaSecret'),\n" +
                 "      string(credentialsId: '${betaId}', variable: 'betaSecret'),\n" +
-                "      string(credentialsId: '${gammaId}', variable: 'gammaSecret'),\n" +
-                "      string(credentialsId: '${deltaId}', variable: 'deltaSecret')\n" +
+                "      string(credentialsId: \"${gammaId}\", variable: 'gammaSecret'),\n" +
+                "      string(credentialsId: deltaId, variable: 'deltaSecret')\n" +
                 "  ]) {\n" +
                 "    if (alphaSecret != '" + alphaSecret + "') {\n" +
                 "      error 'invalid alpha credentials'\n" +
