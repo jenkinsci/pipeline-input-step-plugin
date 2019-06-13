@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import com.cloudbees.plugins.credentials.CredentialsParametersAction;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import hudson.FilePath;
@@ -39,6 +40,7 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -342,6 +344,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private Map<String,Object> parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
         Map<String, Object> mapResult = new HashMap<String, Object>();
         List<ParameterDefinition> defs = input.getParameters();
+        Set<ParameterValue> vals = new HashSet<>(defs.size());
 
         Object params = request.getSubmittedForm().get("parameter");
         if (params!=null) {
@@ -361,9 +364,17 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
                 if (v == null) {
                     continue;
                 }
+                vals.add(v);
                 mapResult.put(name, convert(name, v));
             }
         }
+
+        CredentialsParametersAction action = run.getAction(CredentialsParametersAction.class);
+        if (action == null) {
+            action = new CredentialsParametersAction();
+        }
+        action.addFromParameterValues(vals);
+        run.replaceAction(action);
 
         // If a destination value is specified, push the submitter to it.
         String valueName = input.getSubmitterParameter();
