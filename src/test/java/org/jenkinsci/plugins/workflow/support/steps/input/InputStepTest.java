@@ -31,6 +31,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlElementUtil;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.google.common.base.Predicate;
@@ -406,8 +407,8 @@ public class InputStepTest extends Assert {
                 stringCredentialsInput("GammaCreds", "gammaId") +
                 "  withCredentials([\n" +
                 "      string(credentialsId: 'alphaId', variable: 'alphaSecret'),\n" +
-                "      string(credentialsId: '${betaId}', variable: 'betaSecret'),\n" +
-                "      string(credentialsId: \"gammaId\", variable: 'gammaSecret'),\n" +
+                "      string(credentialsId: 'betaId', variable: 'betaSecret'),\n" +
+                "      string(credentialsId: 'gammaId', variable: 'gammaSecret'),\n" +
                 "      string(credentialsId: 'deltaId', variable: 'deltaSecret')\n" +
                 "  ]) {\n" +
                 "    if (alphaSecret != '" + alphaSecret + "') {\n" +
@@ -452,6 +453,7 @@ public class InputStepTest extends Assert {
         wc.login(username);
         final InputAction action = run.getAction(InputAction.class);
         final HtmlForm form = wc.getPage(run, action.getUrlName()).getFormByName(action.getExecution(inputId).getId());
+        HtmlElementUtil.click(form.getInputByName("includeUser"));
         form.getSelectByName("_.value").setSelectedAttribute(credentialsId, true);
         j.submit(form, "proceed");
     }

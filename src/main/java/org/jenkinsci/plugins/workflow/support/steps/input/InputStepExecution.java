@@ -373,13 +373,13 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         if (action == null) {
             action = new CredentialsParametersAction();
         }
-        action.addFromParameterValues(vals);
+        Authentication a = Jenkins.getAuthentication();
+        action.addFromParameterValues(a.getName(), vals);
         run.replaceAction(action);
 
         // If a destination value is specified, push the submitter to it.
         String valueName = input.getSubmitterParameter();
         if (valueName != null && !valueName.isEmpty()) {
-            Authentication a = Jenkins.getAuthentication();
             mapResult.put(valueName, a.getName());
         }
 
