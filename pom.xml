@@ -111,7 +111,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>2.2.1-rc687.f3efa56bfbe1</version>
+            <version>2.3.0-rc692.55b0354f2e85</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
