@@ -1,6 +1,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
-import com.cloudbees.plugins.credentials.CredentialsParametersAction;
+import com.cloudbees.plugins.credentials.CredentialsParameterValue;
+import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import hudson.FilePath;
@@ -369,18 +370,19 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             }
         }
 
-        CredentialsParametersAction action = run.getAction(CredentialsParametersAction.class);
-        if (action == null) {
-            action = new CredentialsParametersAction();
+        CredentialsParameterBinder binder = CredentialsParameterBinder.getOrCreate(run);
+        String userId = Jenkins.getAuthentication().getName();
+        for (ParameterValue val : vals) {
+            if (val instanceof CredentialsParameterValue) {
+                binder.bindCredentialsParameter(userId, (CredentialsParameterValue) val);
+            }
         }
-        Authentication a = Jenkins.getAuthentication();
-        action.addFromParameterValues(a.getName(), vals);
-        run.replaceAction(action);
+        run.replaceAction(binder);
 
         // If a destination value is specified, push the submitter to it.
         String valueName = input.getSubmitterParameter();
         if (valueName != null && !valueName.isEmpty()) {
-            mapResult.put(valueName, a.getName());
+            mapResult.put(valueName, userId);
         }
 
         if (mapResult.isEmpty()) {
