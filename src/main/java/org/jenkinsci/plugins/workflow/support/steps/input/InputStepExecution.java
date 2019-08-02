@@ -18,6 +18,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.security.SecurityRealm;
 import hudson.security.Permission;
 import hudson.util.HttpResponses;
@@ -99,11 +100,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         // JENKINS-37154: we might be inside the VM thread, so do not do anything which might block on the VM thread
         Timer.get().submit(new Runnable() {
             @Override public void run() {
-                ACL.impersonate(ACL.SYSTEM, new Runnable() {
-                    @Override public void run() {
-                        doAbort();
-                    }
-                });
+                try (ACLContext context = ACL.as(ACL.SYSTEM)) {
+                    doAbort();
+                }
             }
         });
     }
@@ -289,7 +288,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     private boolean canCancel() {
-        return !Jenkins.getActiveInstance().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
+        return !Jenkins.get().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
     }
 
     private boolean canSubmit() {
@@ -304,11 +303,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         String submitter = input.getSubmitter();
         if (submitter==null)
             return getRun().getParent().hasPermission(Job.BUILD);
-        if (!Jenkins.getActiveInstance().isUseSecurity() || Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
+        if (!Jenkins.get().isUseSecurity() || Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
             return true;
         }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
-        final SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
+        final SecurityRealm securityRealm = Jenkins.get().getSecurityRealm();
         if (isMemberOf(a.getName(), submitters, securityRealm.getUserIdStrategy()))
             return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
