@@ -70,7 +70,7 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
             <!-- TODO: update with released version before merging -->
-            <version>2.3.0-rc695.e571c5c271e8</version>
+            <version>2.3.0-rc717.8ae86219bb63</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
