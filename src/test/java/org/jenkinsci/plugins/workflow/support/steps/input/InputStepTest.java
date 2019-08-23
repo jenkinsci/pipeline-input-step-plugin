@@ -384,7 +384,7 @@ public class InputStepTest extends Assert {
     @Test
     public void userScopedCredentials() throws Exception {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
-        final User alpha = User.getOrCreateByIdOrFullName("alpha");
+        final User alpha = User.getById("alpha", true);
         final String alphaSecret = "correct horse battery staple";
         final String alphaId = registerUserSecret(alpha, alphaSecret);
         final User beta = User.getOrCreateByIdOrFullName("beta");
