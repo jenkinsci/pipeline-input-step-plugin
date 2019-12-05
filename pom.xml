@@ -41,13 +41,14 @@
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.138.4</jenkins.version>
         <java.level>8</java.level>
+        <workflow-step-api-plugin.version>2.22-rc550.2870bd01d2ff</workflow-step-api-plugin.version> <!-- TODO: https://github.com/jenkinsci/workflow-step-api-plugin/pull/51 -->
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom</artifactId>
-                <version>2.138.1</version>
+                <artifactId>bom-2.138.x</artifactId>
+                <version>4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -57,6 +58,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
+            <version>${workflow-step-api-plugin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -99,6 +101,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
+            <version>${workflow-step-api-plugin.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>

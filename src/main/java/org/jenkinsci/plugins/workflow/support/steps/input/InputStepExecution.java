@@ -228,7 +228,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     public HttpResponse doAbort() {
         preAbortCheck();
 
-        FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
+        FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, true, new Rejection(User.current()));
         outcome = new Outcome(null,e);
         postSettlement();
         getContext().onFailure(e);
