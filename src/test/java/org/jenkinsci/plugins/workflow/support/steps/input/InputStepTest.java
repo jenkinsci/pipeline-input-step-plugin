@@ -339,6 +339,8 @@ public class InputStepTest extends Assert {
         } catch (Exception e) {
             assertFalse(expectAbortOk);
             j.waitForMessage("Yes or Abort", run);
+            run.doStop();
+            j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(run));
         }
     }
 
@@ -368,6 +370,8 @@ public class InputStepTest extends Assert {
         } catch (Exception e) {
             assertFalse(expectContinueOk);
             j.waitForMessage("Yes or Abort", run);
+            run.doStop();
+            j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(run));
         }
     }
 
