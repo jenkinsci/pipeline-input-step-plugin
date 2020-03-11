@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import com.cloudbees.plugins.credentials.CredentialsParameterValue;
+import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import hudson.FilePath;
@@ -16,6 +18,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.security.SecurityRealm;
 import hudson.util.HttpResponses;
 import jenkins.model.IdStrategy;
@@ -38,6 +41,7 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,11 +103,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         // JENKINS-37154: we might be inside the VM thread, so do not do anything which might block on the VM thread
         Timer.get().submit(new Runnable() {
             @Override public void run() {
-                ACL.impersonate(ACL.SYSTEM, new Runnable() {
-                    @Override public void run() {
-                        doAbort();
-                    }
-                });
+                try (ACLContext context = ACL.as(ACL.SYSTEM)) {
+                    doAbort();
+                }
             }
         });
     }
@@ -317,7 +319,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     private boolean canCancel() {
-        return !Jenkins.getActiveInstance().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
+        return !Jenkins.get().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
     }
 
     private boolean canSubmit() {
@@ -332,11 +334,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         String submitter = input.getSubmitter();
         if (submitter==null)
             return getRun().getParent().hasPermission(Job.BUILD);
-        if (!Jenkins.getActiveInstance().isUseSecurity() || Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
+        if (!Jenkins.get().isUseSecurity() || Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
             return true;
         }
         final Set<String> submitters = Sets.newHashSet(submitter.split(","));
-        final SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
+        final SecurityRealm securityRealm = Jenkins.get().getSecurityRealm();
         if (isMemberOf(a.getName(), submitters, securityRealm.getUserIdStrategy()))
             return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
@@ -373,6 +375,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private Map<String,Object> parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
         Map<String, Object> mapResult = new HashMap<String, Object>();
         List<ParameterDefinition> defs = input.getParameters();
+        Set<ParameterValue> vals = new HashSet<>(defs.size());
 
         Object params = request.getSubmittedForm().get("parameter");
         if (params!=null) {
@@ -392,15 +395,24 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
                 if (v == null) {
                     continue;
                 }
+                vals.add(v);
                 mapResult.put(name, convert(name, v));
             }
         }
 
+        CredentialsParameterBinder binder = CredentialsParameterBinder.getOrCreate(run);
+        String userId = Jenkins.getAuthentication().getName();
+        for (ParameterValue val : vals) {
+            if (val instanceof CredentialsParameterValue) {
+                binder.bindCredentialsParameter(userId, (CredentialsParameterValue) val);
+            }
+        }
+        run.replaceAction(binder);
+
         // If a destination value is specified, push the submitter to it.
         String valueName = input.getSubmitterParameter();
         if (valueName != null && !valueName.isEmpty()) {
-            Authentication a = Jenkins.getAuthentication();
-            mapResult.put(valueName, a.getName());
+            mapResult.put(valueName, userId);
         }
 
         if (mapResult.isEmpty()) {
