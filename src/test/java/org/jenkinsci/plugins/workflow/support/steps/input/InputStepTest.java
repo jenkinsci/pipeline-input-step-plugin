@@ -254,7 +254,7 @@ public class InputStepTest extends Assert {
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
-        j.waitForMessage("input", b);
+        j.waitForMessage("Input requested", b);
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
@@ -292,7 +292,7 @@ public class InputStepTest extends Assert {
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
-        j.waitForMessage("input", b);
+        j.waitForMessage("Input requested", b);
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
