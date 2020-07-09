@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>3.48</version>
+        <version>3.54</version>
         <relativePath />
     </parent>
     <artifactId>pipeline-input-step</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Input Step</name>
-    <url>https://github.com/jenkinsci/pipeline-input-step-plugin</url>
+    <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
     <licenses>
         <license>
             <name>MIT License</name>
