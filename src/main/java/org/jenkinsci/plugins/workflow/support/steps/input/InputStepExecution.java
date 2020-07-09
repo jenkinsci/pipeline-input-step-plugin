@@ -251,20 +251,18 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private void notifyInput(InputExtension.InputEvent inputEvent) {
         InputStep inputStep = this.getInput();
         Jenkins.get().getExtensionList(InputExtension.class).forEach(input -> {
-            final String extensionName = input.getClass().getSimpleName();
-
             User currentUser = User.current();
             final String userID;
             if(currentUser != null) {
                 userID = currentUser.getId();
             } else {
-                userID = "anonymous";
+                userID = null;
             }
 
             try {
                 input.notifyInput(inputStep, run, userID, listener, inputEvent);
             } catch (Exception e) {
-                LOGGER.log(Level.WARNING, String.format("Notification for %s occurred error.", extensionName), e);
+                LOGGER.log(Level.WARNING, null, e);
             }
         });
     }
