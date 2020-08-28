@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.12
+
+Released 2020-08-28
+
+- Fix: Make password parameters work with the `input` step in Jenkins 2.236 and newer ([JENKINS-63516](https://issues.jenkins-ci.org/browse/JENKINS-63516))
+- Improvement: Document that Jenkins administrators are always able to approve `input` steps ([JENKINS-56016](https://issues.jenkins-ci.org/browse/JENKINS-56016))
+- Improvement: Migrate documentation from Wiki to GitHub ([PR 43](https://github.com/jenkinsci/pipeline-input-step-plugin/pull/43))
+- Internal: Update parent POM and dependencies ([PR 38](https://github.com/jenkinsci/pipeline-input-step-plugin/pull/38), [PR 40](https://github.com/jenkinsci/pipeline-input-step-plugin/pull/40), [PR 42](https://github.com/jenkinsci/pipeline-input-step-plugin/pull/42))
+- Internal: Fix flaky test ([PR 45](https://github.com/jenkinsci/pipeline-input-step-plugin/pull/45))
+
 ## 2.11 (Aug 27, 2019)
 
 -   [JENKINS-47699](https://issues.jenkins-ci.org/browse/JENKINS-47699):
