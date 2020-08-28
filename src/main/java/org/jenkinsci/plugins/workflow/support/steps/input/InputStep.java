@@ -4,18 +4,27 @@ import com.google.common.collect.Sets;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.ParameterDefinition;
+import hudson.model.PasswordParameterDefinition;
+import hudson.util.Secret;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
+import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
 
 /**
  * {@link Step} that pauses for human input.
@@ -148,7 +157,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements CustomDescribableModel {
 
         public DescriptorImpl() {
             super(InputStepExecution.class);
@@ -162,6 +171,68 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         @Override
         public String getDisplayName() {
             return Messages.wait_for_interactive_input();
+        }
+
+        /**
+         * Compatibility hack for JENKINS-63516.
+         */
+        @Override
+        public Map<String, Object> customInstantiate(Map<String, Object> map) {
+            if (DescribableModel.of(PasswordParameterDefinition.class).getParameter("defaultValue") != null) {
+                return map;
+            }
+            return copyMapReplacingEntry(map, "parameters", "parameters", List.class, parameters -> parameters.stream()
+                    .map(parameter -> {
+                        if (parameter instanceof UninstantiatedDescribable) {
+                            UninstantiatedDescribable ud = (UninstantiatedDescribable) parameter;
+                            if (ud.getSymbol().equals("password")) {
+                                Map<String, Object> newArguments = copyMapReplacingEntry(ud.getArguments(), "defaultValue", "defaultValueAsSecret", String.class, Secret::fromString);
+                                return ud.withArguments(newArguments);
+                            }
+                        }
+                        return parameter;
+                    })
+                    .collect(Collectors.toList())
+            );
+        }
+
+        /**
+         * Compatibility hack for JENKINS-63516.
+         */
+        @Override
+        public UninstantiatedDescribable customUninstantiate(UninstantiatedDescribable step) {
+            if (DescribableModel.of(PasswordParameterDefinition.class).getParameter("defaultValue") != null) {
+                return step;
+            }
+            Map<String, Object> newStepArgs = copyMapReplacingEntry(step.getArguments(), "parameters", "parameters", List.class, parameters -> parameters.stream()
+                    .map(parameter -> {
+                        if (parameter instanceof UninstantiatedDescribable) {
+                            UninstantiatedDescribable ud = (UninstantiatedDescribable) parameter;
+                            if (ud.getSymbol().equals("password")) {
+                                Map<String, Object> newParamArgs = copyMapReplacingEntry(ud.getArguments(), "defaultValueAsSecret", "defaultValue", Secret.class, Secret::getPlainText);
+                                return ud.withArguments(newParamArgs);
+                            }
+                        }
+                        return parameter;
+                    })
+                    .collect(Collectors.toList())
+            );
+            return step.withArguments(newStepArgs);
+        }
+
+        /**
+         * Copy a map, replacing the entry with the specified key if it matches the specified type.
+         */
+        private static <T> Map<String, Object> copyMapReplacingEntry(Map<String, ?> map, String oldKey, String newKey, Class<T> requiredValueType, Function<T, Object> replacer) {
+            Map<String, Object> newMap = new TreeMap<>();
+            for (Map.Entry<String, ?> entry : map.entrySet()) {
+                if (entry.getKey().equals(oldKey) && requiredValueType.isInstance(entry.getValue())) {
+                    newMap.put(newKey, replacer.apply(requiredValueType.cast(entry.getValue())));
+                } else {
+                    newMap.put(entry.getKey(), entry.getValue());
+                }
+            }
+            return newMap;
         }
     }
 }

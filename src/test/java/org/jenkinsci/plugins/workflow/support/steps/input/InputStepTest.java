@@ -450,6 +450,28 @@ public class InputStepTest extends Assert {
         j.assertBuildStatusSuccess(runFuture);
     }
 
+    @Issue("JENKINS-63516")
+    @Test
+    public void passwordParameters() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "def password = input(message: 'Proceed?', id: 'MyId', parameters: [\n" +
+                "  password(name: 'myPassword', defaultValue: 'mySecret', description: 'myDescription')\n" +
+                "])\n" +
+                "echo('Password is ' + password)", true));
+        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        while (b.getAction(InputAction.class) == null) {
+            Thread.sleep(100);
+        }
+        InputAction action = b.getAction(InputAction.class);
+        assertEquals(1, action.getExecutions().size());
+        JenkinsRule.WebClient wc = j.createWebClient();
+        HtmlPage page = wc.getPage(b, action.getUrlName());
+        j.submit(page.getFormByName(action.getExecution("MyId").getId()), "proceed");
+        j.assertBuildStatusSuccess(j.waitForCompletion(b));
+        j.assertLogContains("Password is mySecret", b);
+    }
+
     private void selectUserCredentials(JenkinsRule.WebClient wc, WorkflowRun run, CpsFlowExecution execution, String credentialsId, String username, String inputId) throws Exception {
         while (run.getAction(InputAction.class) == null) {
             execution.waitForSuspension();
