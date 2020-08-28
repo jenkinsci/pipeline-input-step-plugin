@@ -8,10 +8,10 @@ import hudson.model.PasswordParameterDefinition;
 import hudson.util.Secret;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
@@ -224,7 +224,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
          * Copy a map, replacing the entry with the specified key if it matches the specified type.
          */
         private static <T> Map<String, Object> copyMapReplacingEntry(Map<String, ?> map, String oldKey, String newKey, Class<T> requiredValueType, Function<T, Object> replacer) {
-            Map<String, Object> newMap = new HashMap<>();
+            Map<String, Object> newMap = new TreeMap<>();
             for (Map.Entry<String, ?> entry : map.entrySet()) {
                 if (entry.getKey().equals(oldKey) && requiredValueType.isInstance(entry.getValue())) {
                     newMap.put(newKey, replacer.apply(requiredValueType.cast(entry.getValue())));
