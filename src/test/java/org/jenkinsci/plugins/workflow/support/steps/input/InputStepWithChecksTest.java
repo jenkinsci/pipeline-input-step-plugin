@@ -181,13 +181,13 @@ public class InputStepWithChecksTest extends Assert {
 
         ChecksDetails complete = checksDetails.get(2);
         assertEquals(ChecksStatus.COMPLETED, complete.getStatus());
-        assertEquals(ChecksConclusion.FAILURE, complete.getConclusion());
+        assertEquals(ChecksConclusion.CANCELED, complete.getConclusion());
         assertTrue(complete.getOutput().isPresent());
 
         ChecksOutput completeOutput = complete.getOutput().get();
         assertTrue(completeOutput.getSummary().isPresent());
         assertEquals("occurred while executing withChecks step.", completeOutput.getSummary().get());
         assertTrue(completeOutput.getText().isPresent());
-        assertEquals("org.jenkinsci.plugins.workflow.steps.FlowInterruptedException", completeOutput.getText().get());
+        assertEquals("Rejected by bob", completeOutput.getText().get());
     }
 }

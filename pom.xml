@@ -41,7 +41,7 @@
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.204.6</jenkins.version>
         <java.level>8</java.level>
-        <checks-api.version>1.2.0</checks-api.version>
+        <checks-api.version>1.2.1-rc175.bb070c651870</checks-api.version>
         <useBeta>true</useBeta>
     </properties>
     <dependencyManagement>
@@ -79,7 +79,7 @@
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>plugin-util-api</artifactId>
-            <version>1.6.0</version>
+            <version>1.6.1</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
