@@ -4,7 +4,7 @@
 
 Adds the Pipeline `input` step to wait for human input or approval. 
 
-For further understanding,check the https://plugins.jenkins.io[documentation] for pipeline-input-step plugin.  The link:https://www.jenkins.io/redirect/pipeline-snippet-generator [Pipeline Syntax Snippet Generator] guides the user to select checkout options.
+For further understanding,check the [documentation](https://plugins.jenkins.io) for pipeline-input-step plugin.  The  [Pipeline Syntax Snippet Generator](https://www.jenkins.io/redirect/pipeline-snippet-generator) guides the user to select checkout options.
 
 
 
