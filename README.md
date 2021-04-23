@@ -9,4 +9,4 @@ For further understanding,check the https://plugins.jenkins.io[documentation] fo
 
 
 ## Version History
-Please refer to [the changelog](CHANGELOG.md) SCM link:https://www.jenkins.io/doc/pipeline/steps/workflow-scm-step/[`checkout` step].
+Please refer to [the changelog](CHANGELOG.md) and SCM [`checkout` step](https://www.jenkins.io/doc/pipeline/steps/workflow-scm-step/).
