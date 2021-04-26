@@ -10,4 +10,4 @@ For further understanding, check the [pipeline input step plugin documentation](
 
 
 ## Version History
-Please refer to [the changelog](CHANGELOG.md) and SCM [`checkout` step](https://www.jenkins.io/doc/pipeline/steps/workflow-scm-step/).
+Please refer to [the changelog](CHANGELOG.md)
