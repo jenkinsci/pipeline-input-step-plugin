@@ -105,6 +105,20 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     }
 
     /**
+     * Caption of the Abort button.
+     */
+
+    private String abort;
+    
+    public String getAbort() {
+        return abort!=null ? abort : Messages.proceed();
+    }
+
+    @DataBoundSetter public void setAbort(String abort) {
+        this.abort = Util.fixEmptyAndTrim(abort);
+    }
+
+    /**
      * Caption of the OK button.
      */
     public String getOk() {
