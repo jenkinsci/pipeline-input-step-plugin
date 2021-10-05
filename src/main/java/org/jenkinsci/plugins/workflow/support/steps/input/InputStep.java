@@ -185,7 +185,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
                     .map(parameter -> {
                         if (parameter instanceof UninstantiatedDescribable) {
                             UninstantiatedDescribable ud = (UninstantiatedDescribable) parameter;
-                            if (ud.getSymbol().equals("password")) {
+                            if (null != ud.getSymbol() && ud.getSymbol().equals("password")) {
                                 Map<String, Object> newArguments = copyMapReplacingEntry(ud.getArguments(), "defaultValue", "defaultValueAsSecret", String.class, Secret::fromString);
                                 return ud.withArguments(newArguments);
                             }
