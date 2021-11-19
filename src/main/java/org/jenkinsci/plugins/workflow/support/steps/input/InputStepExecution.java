@@ -4,6 +4,7 @@ import com.cloudbees.plugins.credentials.CredentialsParameterValue;
 import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import edu.hm.hafner.util.VisibleForTesting;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
@@ -20,8 +21,14 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.security.SecurityRealm;
-import hudson.security.Permission;
 import hudson.util.HttpResponses;
+import io.jenkins.plugins.checks.api.ChecksConclusion;
+import io.jenkins.plugins.checks.api.ChecksDetails;
+import io.jenkins.plugins.checks.api.ChecksOutput;
+import io.jenkins.plugins.checks.api.ChecksPublisher;
+import io.jenkins.plugins.checks.api.ChecksPublisherFactory;
+import io.jenkins.plugins.checks.api.ChecksStatus;
+import io.jenkins.plugins.checks.steps.ChecksInfo;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
@@ -29,6 +36,7 @@ import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.displayurlapi.DisplayURLProvider;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -45,10 +53,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 
@@ -74,6 +85,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     @Override
     public boolean start() throws Exception {
+        if (getChecksName().isPresent()) {
+            getPublisher().publish(extractChecksDetailsStart());
+        }
+
         // record this input
         getPauseAction().add(this);
 
@@ -185,6 +200,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             listener.getLogger().println("Approved by " + hudson.console.ModelHyperlinkNote.encodeTo(user));
         }
         node.addAction(new InputSubmittedAction(approverId, params));
+
+        if (getChecksName().isPresent()) {
+            getPublisher().publish(extractChecksDetailsProceed(user, params));
+        }
 
         Object v;
         if (params != null && params.size() == 1) {
@@ -400,6 +419,63 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         } else {
             return v.getValue();
         }
+    }
+
+    Optional<String> getChecksName() {
+        try {
+            return Optional.ofNullable(getContext().get(ChecksInfo.class))
+                    .map(ChecksInfo::getName);
+        } catch (IOException | InterruptedException e) {
+            return Optional.empty();
+        }
+    }
+
+    private ChecksPublisher getPublisher() {
+        return ChecksPublisherFactory.fromRun(run, listener);
+    }
+
+    @VisibleForTesting
+    ChecksDetails extractChecksDetailsStart() {
+        assert getChecksName().isPresent();
+        ChecksOutput output = new ChecksOutput.ChecksOutputBuilder()
+                .withTitle("Input requested")
+                .withSummary(input.getMessage())
+                .build();
+        return new ChecksDetails.ChecksDetailsBuilder()
+                .withName(getChecksName().get())
+                .withStatus(ChecksStatus.COMPLETED)
+                .withConclusion(ChecksConclusion.ACTION_REQUIRED)
+                .withDetailsURL(DisplayURLProvider.get().getRoot() + run.getUrl() + getPauseAction().getUrlName() + "/")
+                .withOutput(output)
+                .build();
+    }
+
+    @VisibleForTesting
+    ChecksDetails extractChecksDetailsProceed(@CheckForNull User user, @CheckForNull Map<String, Object> parameters) {
+        assert getChecksName().isPresent();
+
+        ChecksOutput.ChecksOutputBuilder outputBuilder = new ChecksOutput.ChecksOutputBuilder()
+                .withTitle("Input provided");
+        if (user != null) {
+            outputBuilder.withSummary("Approved by " + user.getDisplayName());
+        }
+        if (parameters != null) {
+            outputBuilder.withText(extractChecksText(parameters));
+        }
+        return new ChecksDetails.ChecksDetailsBuilder()
+                .withName(getChecksName().get())
+                .withStatus(ChecksStatus.COMPLETED)
+                .withConclusion(ChecksConclusion.SUCCESS)
+                .withDetailsURL(DisplayURLProvider.get().getRunURL(run))
+                .withOutput(outputBuilder.build())
+                .build();
+    }
+
+    @VisibleForTesting
+    String extractChecksText(Map<String, Object> parameters) {
+        return parameters.entrySet().stream()
+                .map(entry -> String.format("%s: %s", entry.getKey(), entry.getValue()))
+                .collect(Collectors.joining("\n"));
     }
 
     private static final long serialVersionUID = 1L;
