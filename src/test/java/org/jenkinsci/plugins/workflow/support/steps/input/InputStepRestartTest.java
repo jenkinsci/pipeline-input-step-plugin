@@ -43,38 +43,35 @@ import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.JenkinsSessionRule;
 
 public class InputStepRestartTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @Rule public JenkinsSessionRule sessions = new JenkinsSessionRule();
 
     @Issue("JENKINS-25889")
-    @Test public void restart() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+    @Test public void restart() throws Throwable {
+        sessions.then(j -> {
+                WorkflowJob p = j.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("input 'paused'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
-                story.j.waitForMessage("paused", b);
-            }
+                j.waitForMessage("paused", b);
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowRun b = story.j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
-                proceed(b);
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+        sessions.then(j -> {
+                WorkflowRun b = j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
+                proceed(b, j);
+                j.assertBuildStatusSuccess(j.waitForCompletion(b));
                 sanity(b);
-            }
         });
     }
     
-    private void proceed(WorkflowRun b) throws Exception {
+    private static void proceed(WorkflowRun b, JenkinsRule j) throws Exception {
         InputAction a = b.getAction(InputAction.class);
         assertNotNull(a);
         assertEquals(1, a.getExecutions().size());
-        story.j.submit(story.j.createWebClient().getPage(b, a.getUrlName()).getFormByName(a.getExecutions().get(0).getId()), "proceed");
+        j.submit(j.createWebClient().getPage(b, a.getUrlName()).getFormByName(a.getExecutions().get(0).getId()), "proceed");
     }
 
     private void sanity(WorkflowRun b) throws Exception {
@@ -89,18 +86,15 @@ public class InputStepRestartTest {
     }
 
     @Issue("JENKINS-37154")
-    @Test public void interrupt() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+    @Test public void interrupt() throws Throwable {
+        sessions.then(j -> {
+                WorkflowJob p = j.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("catchError {input 'paused'}", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
-                story.j.waitForMessage("paused", b);
-            }
+                j.waitForMessage("paused", b);
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowRun b = story.j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
+        sessions.then(j -> {
+                WorkflowRun b = j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
                 assertNotNull(b);
                 assertTrue(b.isBuilding());
                 Executor executor;
@@ -109,9 +103,8 @@ public class InputStepRestartTest {
                 }
                 assertNotNull(executor);
                 executor.interrupt();
-                story.j.assertBuildStatus(Result.ABORTED, story.j.waitForCompletion(b));
+                j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(b));
                 sanity(b);
-            }
         });
     }
 
