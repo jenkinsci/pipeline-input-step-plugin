@@ -1,5 +1,7 @@
 # Changelog
 
+- For newer versions, see [GitHub Releases](https://github.com/jenkinsci/pipeline-input-step-plugin/releases)
+
 ## 2.12
 
 Released 2020-08-28
