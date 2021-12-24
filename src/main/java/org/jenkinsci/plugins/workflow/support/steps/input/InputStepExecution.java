@@ -3,7 +3,6 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 import com.cloudbees.plugins.credentials.CredentialsParameterValue;
 import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import com.google.common.collect.Sets;
-import com.google.inject.Inject;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
@@ -29,10 +28,10 @@ import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
 import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -55,32 +54,35 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 /**
  * @author Kohsuke Kawaguchi
  */
-public class InputStepExecution extends AbstractStepExecutionImpl implements ModelObject {
+public class InputStepExecution extends StepExecution implements ModelObject {
 
     private static final Logger LOGGER = Logger.getLogger(InputStepExecution.class.getName());
-
-    @StepContextParameter private transient Run run;
-
-    @StepContextParameter private transient TaskListener listener;
-
-    @StepContextParameter private transient FlowNode node;
 
     /**
      * Result of the input.
      */
     private Outcome outcome;
 
-    @Inject(optional=true) InputStep input;
+    InputStep input;
+
+    public InputStepExecution(StepContext context, InputStep input) {
+        super(context);
+        this.input = input;
+    }
 
     @Override
     public boolean start() throws Exception {
+        Run<?, ?> run = getContext().get(Run.class);
+        TaskListener listener = getContext().get(TaskListener.class);
+        FlowNode node = getContext().get(FlowNode.class);
+
         // record this input
-        getPauseAction().add(this);
+        getPauseAction(run).add(this);
 
         // This node causes the flow to pause at this point so we mark it as a "Pause Node".
         node.addAction(new PauseAction("Input"));
 
-        String baseUrl = '/' + run.getUrl() + getPauseAction().getUrlName() + '/';
+        String baseUrl = '/' + run.getUrl() + getPauseAction(run).getUrlName() + '/';
         //JENKINS-40594 submitterParameter does not work without at least one actual parameter
         if (input.getParameters().isEmpty() && input.getSubmitterParameter() == null) {
             String thisUrl = baseUrl + Util.rawEncode(getId()) + '/';
@@ -102,6 +104,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             @Override public void run() {
                 try (ACLContext context = ACL.as(ACL.SYSTEM)) {
                     doAbort();
+                } catch (IOException | InterruptedException e) {
+                    LOGGER.log(Level.WARNING, "failed to abort", e);
                 }
             }
         });
@@ -115,10 +119,6 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         return input;
     }
 
-    public Run getRun() {
-        return run;
-    }
-
     /**
      * If this input step has been decided one way or the other.
      */
@@ -129,7 +129,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     /**
      * Gets the {@link InputAction} that this step should be attached to.
      */
-    private InputAction getPauseAction() {
+    private static InputAction getPauseAction(Run<?, ?> run) {
         InputAction a = run.getAction(InputAction.class);
         if (a==null)
             run.addAction(a=new InputAction());
@@ -176,14 +176,17 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * @param params A map that represents the parameters sent in the request
      * @return A HttpResponse object that represents Status code (200) indicating the request succeeded normally.
      */
-    public HttpResponse proceed(@CheckForNull Map<String,Object> params) {
+    public HttpResponse proceed(@CheckForNull Map<String,Object> params) throws IOException, InterruptedException {
         User user = User.current();
         String approverId = null;
         if (user != null){
             approverId = user.getId();
+            Run<?, ?> run = getContext().get(Run.class);
             run.addAction(new ApproverAction(approverId));
+            TaskListener listener = getContext().get(TaskListener.class);
             listener.getLogger().println("Approved by " + hudson.console.ModelHyperlinkNote.encodeTo(user));
         }
+        FlowNode node = getContext().get(FlowNode.class);
         node.addAction(new InputSubmittedAction(approverId, params));
 
         Object v;
@@ -201,7 +204,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     @Deprecated
     @SuppressWarnings("unchecked")
-    public HttpResponse proceed(Object v) {
+    public HttpResponse proceed(Object v) throws IOException, InterruptedException {
         if (v instanceof Map) {
             return proceed(new HashMap<String,Object>((Map) v));
         } else if (v == null) {
@@ -215,7 +218,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * Used from the Proceed hyperlink when no parameters are defined.
      */
     @RequirePOST
-    public HttpResponse doProceedEmpty() throws IOException {
+    public HttpResponse doProceedEmpty() throws IOException, InterruptedException {
         preSubmissionCheck();
 
         return proceed(null);
@@ -225,7 +228,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * REST endpoint to abort the workflow.
      */
     @RequirePOST
-    public HttpResponse doAbort() {
+    public HttpResponse doAbort() throws IOException, InterruptedException {
         preAbortCheck();
 
         FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
@@ -241,10 +244,12 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     /**
      * Check if the current user can abort/cancel the run from the input.
      */
-    private void preAbortCheck() {
+    private void preAbortCheck() throws IOException, InterruptedException {
         if (isSettled()) {
             throw new Failure("This input has been already given");
-        } if (!canCancel() && !canSubmit()) {
+        }
+        Run<?, ?> run = getContext().get(Run.class);
+        if (!canCancel(run) && !canSubmit(run, input.getSubmitter())) {
             if (input.getSubmitter() != null) {
                 throw new Failure("You need to be '" + input.getSubmitter() + "' (or have Job/Cancel permissions) to cancel this.");
             } else {
@@ -256,10 +261,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     /**
      * Check if the current user can submit the input.
      */
-    public void preSubmissionCheck() {
+    public void preSubmissionCheck() throws IOException, InterruptedException {
         if (isSettled())
             throw new Failure("This input has been already given");
-        if (!canSubmit()) {
+        Run<?, ?> run = getContext().get(Run.class);
+        if (!canSubmit(run, input.getSubmitter())) {
             if (input.getSubmitter() != null) {
                 throw new Failure("You need to be " + input.getSubmitter() + " to submit this.");
             } else {
@@ -268,13 +274,15 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
     }
 
-    private void postSettlement() {
+    private void postSettlement() throws IOException, InterruptedException {
+        Run<?, ?> run = getContext().get(Run.class);
         try {
-            getPauseAction().remove(this);
+            getPauseAction(run).remove(this);
             run.save();
         } catch (IOException | InterruptedException | TimeoutException x) {
             LOGGER.log(Level.WARNING, "failed to remove InputAction from " + run, x);
         } finally {
+            FlowNode node = getContext().get(FlowNode.class);
             if (node != null) {
                 try {
                     PauseAction.endCurrentPause(node);
@@ -287,22 +295,21 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
     }
 
-    private boolean canCancel() {
-        return !Jenkins.get().isUseSecurity() || getRun().getParent().hasPermission(Job.CANCEL);
+    private static boolean canCancel(Run<?, ?> run) {
+        return !Jenkins.get().isUseSecurity() || run.getParent().hasPermission(Job.CANCEL);
     }
 
-    private boolean canSubmit() {
+    private static boolean canSubmit(Run<?, ?> run, String submitter) {
         Authentication a = Jenkins.getAuthentication();
-        return canSettle(a);
+        return canSettle(run, submitter, a);
     }
 
     /**
      * Checks if the given user can settle this input.
      */
-    private boolean canSettle(Authentication a) {
-        String submitter = input.getSubmitter();
+    private static boolean canSettle(Run<?, ?> run, String submitter, Authentication a) {
         if (submitter==null)
-            return getRun().getParent().hasPermission(Job.BUILD);
+            return run.getParent().hasPermission(Job.BUILD);
         if (!Jenkins.get().isUseSecurity() || Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
             return true;
         }
@@ -329,7 +336,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      *
      * @see {@link jenkins.model.IdStrategy#CASE_INSENSITIVE}.
      */
-    private boolean isMemberOf(String userId, Set<String> submitters, IdStrategy idStrategy) {
+    private static boolean isMemberOf(String userId, Set<String> submitters, IdStrategy idStrategy) {
         for (String submitter : submitters) {
             if (idStrategy.equals(userId, StringUtils.trim(submitter))) {
                 return true;
@@ -369,6 +376,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             }
         }
 
+        Run<?, ?> run = getContext().get(Run.class);
         CredentialsParameterBinder binder = CredentialsParameterBinder.getOrCreate(run);
         String userId = Jenkins.getAuthentication().getName();
         for (ParameterValue val : vals) {
@@ -394,6 +402,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private Object convert(String name, ParameterValue v) throws IOException, InterruptedException {
         if (v instanceof FileParameterValue) {
             FileParameterValue fv = (FileParameterValue) v;
+            Run<?, ?> run = getContext().get(Run.class);
             FilePath fp = new FilePath(run.getRootDir()).child(name);
             fp.copyFrom(fv.getFile());
             return fp;

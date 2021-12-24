@@ -5,9 +5,12 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.ParameterDefinition;
 import hudson.model.PasswordParameterDefinition;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.util.Secret;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,9 +23,11 @@ import org.acegisecurity.GrantedAuthority;
 import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -31,7 +36,7 @@ import org.kohsuke.stapler.DataBoundSetter;
  *
  * @author Kohsuke Kawaguchi
  */
-public class InputStep extends AbstractStepImpl implements Serializable {
+public class InputStep extends Step implements Serializable {
     private final String message;
 
     /**
@@ -152,15 +157,23 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
 
     @Override
+    public StepExecution start(StepContext context) {
+        return new InputStepExecution(context, this);
+    }
+
+    @Override
     public DescriptorImpl getDescriptor() {
         return (DescriptorImpl)super.getDescriptor();
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements CustomDescribableModel {
+    public static class DescriptorImpl extends StepDescriptor implements CustomDescribableModel {
 
-        public DescriptorImpl() {
-            super(InputStepExecution.class);
+        @Override
+        public Set<? extends Class<?>> getRequiredContext() {
+            Set<Class<?>> context = new HashSet<>();
+            Collections.addAll(context, Run.class, TaskListener.class, FlowNode.class);
+            return Collections.unmodifiableSet(context);
         }
 
         @Override
