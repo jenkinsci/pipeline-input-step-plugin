@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import com.cloudbees.plugins.credentials.CredentialsParameterValue;
 import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
-import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import hudson.FilePath;
 import hudson.Util;
@@ -306,7 +305,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         if (!Jenkins.get().isUseSecurity() || Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
             return true;
         }
-        final Set<String> submitters = Sets.newHashSet(submitter.split(","));
+        final Set<String> submitters = new HashSet<>();
+        Collections.addAll(submitters, submitter.split(","));
         final SecurityRealm securityRealm = Jenkins.get().getSecurityRealm();
         if (isMemberOf(a.getName(), submitters, securityRealm.getUserIdStrategy()))
             return true;
