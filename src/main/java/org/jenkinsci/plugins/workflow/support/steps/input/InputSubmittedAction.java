@@ -26,8 +26,8 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import org.jenkinsci.plugins.workflow.actions.PersistentAction;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -50,7 +50,7 @@ public class InputSubmittedAction implements PersistentAction {
         }
     }
 
-    @Nonnull
+    @NonNull
     public Map<String,Object> getParameters() {
         return parameters;
     }
