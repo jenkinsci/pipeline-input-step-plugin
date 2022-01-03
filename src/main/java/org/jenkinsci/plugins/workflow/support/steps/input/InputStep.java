@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
-import com.google.common.collect.Sets;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.ParameterDefinition;
@@ -8,6 +7,7 @@ import hudson.model.PasswordParameterDefinition;
 import hudson.util.Secret;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -140,7 +140,8 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     public boolean canSettle(Authentication a) {
         if (submitter==null)
             return true;
-        final Set<String> submitters = Sets.newHashSet(submitter.split(","));
+        final Set<String> submitters = new HashSet<>();
+        Collections.addAll(submitters, submitter.split(","));
         if (submitters.contains(a.getName()))
             return true;
         for (GrantedAuthority ga : a.getAuthorities()) {
