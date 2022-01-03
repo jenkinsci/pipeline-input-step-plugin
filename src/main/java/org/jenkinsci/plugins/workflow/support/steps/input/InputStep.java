@@ -4,6 +4,8 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.ParameterDefinition;
 import hudson.model.PasswordParameterDefinition;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.util.Secret;
 import java.io.Serializable;
 import java.util.Collections;
@@ -20,9 +22,12 @@ import org.acegisecurity.GrantedAuthority;
 import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -62,6 +67,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
     @DataBoundConstructor
     public InputStep(String message) {
+        super(true);
         if (message==null)
             message = "Pipeline has paused and needs your input before proceeding";
         this.message = message;
@@ -151,6 +157,10 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         return false;
     }
 
+    @Override public StepExecution start(StepContext context) throws Exception {
+        return new InputStepExecution(this, context);
+    }
+
 
     @Override
     public DescriptorImpl getDescriptor() {
@@ -158,11 +168,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements CustomDescribableModel {
-
-        public DescriptorImpl() {
-            super(InputStepExecution.class);
-        }
+    public static class DescriptorImpl extends StepDescriptor implements CustomDescribableModel {
 
         @Override
         public String getFunctionName() {
@@ -172,6 +178,12 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         @Override
         public String getDisplayName() {
             return Messages.wait_for_interactive_input();
+        }
+
+        @Override public Set<? extends Class<?>> getRequiredContext() {
+            Set<Class<?>> context = new HashSet<>();
+            Collections.addAll(context, Run.class, TaskListener.class, FlowNode.class);
+            return Collections.unmodifiableSet(context);
         }
 
         /**
