@@ -31,7 +31,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * @author Valentina Armenise
@@ -44,7 +44,7 @@ public class ApproverAction extends InvisibleAction {
         this.userId = userId;
     }
 
-    @Nonnull
+    @NonNull
     final private String userId;
 
     @Exported

@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import hudson.model.User;
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import jenkins.model.CauseOfInterruption;
 import org.kohsuke.stapler.export.Exported;
 

@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
@@ -120,7 +120,7 @@ public class InputAction implements RunAction2 {
         return "input";
     }
 
-    public synchronized void add(@Nonnull InputStepExecution step) throws IOException, InterruptedException, TimeoutException {
+    public synchronized void add(@NonNull InputStepExecution step) throws IOException, InterruptedException, TimeoutException {
         loadExecutions();
         if (executions == null) {
             throw new IOException("cannot load state");

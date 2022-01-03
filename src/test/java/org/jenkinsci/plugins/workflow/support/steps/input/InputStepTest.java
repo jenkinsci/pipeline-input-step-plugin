@@ -75,7 +75,7 @@ import java.util.UUID;
 
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * @author Kohsuke Kawaguchi
