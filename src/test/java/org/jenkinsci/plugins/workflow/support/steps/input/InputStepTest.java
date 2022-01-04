@@ -30,6 +30,8 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlElementUtil;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
@@ -76,6 +78,7 @@ import java.util.UUID;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import org.jvnet.hudson.test.recipes.LocalData;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -470,6 +473,15 @@ public class InputStepTest extends Assert {
         j.submit(page.getFormByName(action.getExecution("MyId").getId()), "proceed");
         j.assertBuildStatusSuccess(j.waitForCompletion(b));
         j.assertLogContains("Password is mySecret", b);
+    }
+
+    @LocalData
+    @Test public void serialForm() throws Exception {
+        WorkflowJob p = j.jenkins.getItemByFullName("p", WorkflowJob.class);
+        WorkflowRun b = p.getBuildByNumber(1);
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.getPage(new WebRequest(wc.createCrumbedUrl("job/p/1/input/9edfbbe09847e1bfee4f8d2b0abfd1c3/proceedEmpty"), HttpMethod.POST));
+        j.assertBuildStatusSuccess(j.waitForCompletion(b));
     }
 
     private void selectUserCredentials(JenkinsRule.WebClient wc, WorkflowRun run, CpsFlowExecution execution, String credentialsId, String username, String inputId) throws Exception {
