@@ -23,7 +23,7 @@ Input Example with `OK Button Caption`(Optional):
    input message: 'input-message', ok: 'OK'
 
 Input Example with `Allowed Submitter`:
-User IDs and/or external group names of person or people permitted to respond to the input, separated by ','. Spaces will be trimmed. This means that "alice, bob, blah " is the same as "alice,bob,blah".
+User IDs and/or external group names of person or people permitted to respond to the input, separated by ','. Spaces will be trimmed automatically, so "Alice, Bob, Charles" is the same as "Alice,Bob,Charles".
 Note: Jenkins administrators are able to respond to the input regardless of the value of this parameter.
 
    input message: '', submitter: 'jenkins-user, jenkins-user2'
