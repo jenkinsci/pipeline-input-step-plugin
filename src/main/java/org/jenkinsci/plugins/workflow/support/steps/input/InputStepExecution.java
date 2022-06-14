@@ -4,10 +4,12 @@ import com.cloudbees.plugins.credentials.CredentialsParameterValue;
 import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import hudson.AbortException;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
 import hudson.model.Failure;
+import hudson.model.FileParameterDefinition;
 import hudson.model.FileParameterValue;
 import hudson.model.Job;
 import hudson.model.ModelObject;
@@ -33,6 +35,8 @@ import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -49,6 +53,7 @@ import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 
@@ -58,6 +63,14 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 public class InputStepExecution extends AbstractStepExecutionImpl implements ModelObject {
 
     private static final Logger LOGGER = Logger.getLogger(InputStepExecution.class.getName());
+
+    // for testing only
+    static final String UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME = InputStepExecution.class.getName() + ".supportUnsafeParameters";
+
+    private static boolean isAllowUnsafeParameters() {
+        return Boolean.getBoolean(UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME);
+    }
+
 
     @StepContextParameter private transient Run run;
 
@@ -74,6 +87,19 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     @Override
     public boolean start() throws Exception {
+        // SECURITY-2705 if the escape hatch is allowed just warn about pending removal, otherwise fail the build before waiting
+        if (getHasUnsafeParameters()) {
+            if (isAllowUnsafeParameters()) {
+                listener.getLogger().println("Support for FileParameters in the input step has been enabled via "
+                                                  + UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME + " which will be removed in a future release." +
+                        System.lineSeparator() +
+                        "Details on how to migrate your pipeline can be found online: https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters.");
+            } else {
+                throw new AbortException("Support for FileParameters in the input step is disabled and will be removed in a future release. " + 
+                                         System.lineSeparator() + "Details on how to migrate your pipeline can be found online: " + 
+                                          "https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters.");
+            }
+        }
         // record this input
         getPauseAction().add(this);
 
@@ -392,14 +418,27 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     private Object convert(String name, ParameterValue v) throws IOException, InterruptedException {
-        if (v instanceof FileParameterValue) {
-            FileParameterValue fv = (FileParameterValue) v;
-            FilePath fp = new FilePath(run.getRootDir()).child(name);
-            fp.copyFrom(fv.getFile());
-            return fp;
+        if (v instanceof FileParameterValue) {  // SECURITY-2705
+            if (isAllowUnsafeParameters()) {
+                FileParameterValue fv = (FileParameterValue) v;
+                FilePath fp = new FilePath(getRun().getRootDir()).child(name);
+                fp.copyFrom(fv.getFile());
+                return fp;
+            } else {
+                // whilst the step would be aborted in start() if the pipeline was in the input step at the point of
+                // upgrade it will be allowed to pass so we pick it up here.
+                throw new AbortException("Support for FileParameters in the input step is disabled and will be removed in a future release. " + 
+                        System.lineSeparator() + "Details on how to migrate your pipeline can be found online: " + 
+                         "https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters.");
+            }
         } else {
             return v.getValue();
         }
+    }
+
+    @Restricted(NoExternalUse.class) // jelly access only
+    public boolean getHasUnsafeParameters() {
+        return input.getParameters().stream().anyMatch(parameter -> parameter.getClass() == FileParameterDefinition.class);
     }
 
     private static final long serialVersionUID = 1L;
