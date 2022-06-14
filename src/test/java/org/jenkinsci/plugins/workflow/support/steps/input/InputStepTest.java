@@ -34,6 +34,7 @@ import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlElementUtil;
+import com.gargoylesoftware.htmlunit.html.HtmlFileInput;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.google.common.base.Predicate;
@@ -48,12 +49,14 @@ import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
 
 
+import java.io.File;
 import java.io.IOException;
 
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.util.Secret;
 import jenkins.model.IdStrategy;
+import jenkins.model.InterruptedBuildAction;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
@@ -63,11 +66,11 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
@@ -80,14 +83,27 @@ import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import org.jvnet.hudson.test.recipes.LocalData;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
+
 /**
  * @author Kohsuke Kawaguchi
  */
-public class InputStepTest extends Assert {
+public class InputStepTest {
     @Rule public JenkinsRule j = new JenkinsRule();
 
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
+
+    @Rule public FlagRule<String> allowUnsafeParams = FlagRule.systemProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME, null);
 
     /**
      * Try out a parameter.
@@ -473,6 +489,59 @@ public class InputStepTest extends Assert {
         j.submit(page.getFormByName(action.getExecution("MyId").getId()), "proceed");
         j.assertBuildStatusSuccess(j.waitForCompletion(b));
         j.assertLogContains("Password is mySecret", b);
+    }
+
+    @Issue("SECURITY-2705")
+    @Test
+    public void fileParameterWithEscapeHatch() throws Exception {
+        System.setProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME, "true");
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition("node {\n" +
+                "input message: 'Please provide a file', parameters: [file('paco.txt')], id: 'Id' \n" +
+                " }",true));
+
+        // get the build going, and wait until workflow pauses
+        QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
+        WorkflowRun b = q.waitForStart();
+        j.waitForMessage("Input requested", b);
+
+        InputAction action = b.getAction(InputAction.class);
+        assertEquals(1, action.getExecutions().size());
+
+        // submit the input, and expect a failure, no need to set any file value as the check we are testing takes
+        // place before we try to interact with the file
+        JenkinsRule.WebClient wc = j.createWebClient();
+        HtmlPage p = wc.getPage(b, action.getUrlName());
+        HtmlForm f = p.getFormByName("Id");
+        HtmlFileInput fileInput = f.getInputByName("file");
+        fileInput.setValueAttribute("dummy.txt");
+        fileInput.setContentType("text/csv");
+        String currentTime = "Current time " + System.currentTimeMillis();
+        fileInput.setData(currentTime.getBytes());
+        j.submit(f, "proceed");
+
+        j.assertBuildStatus(Result.SUCCESS, j.waitForCompletion(b));
+        assertTrue(new File(b.getRootDir(), "paco.txt").exists());
+        assertThat(JenkinsRule.getLog(b), 
+                allOf(containsString(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME),
+                      containsString("will be removed in a future release"),
+                      containsString("https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters")));
+    }
+
+    @Issue("SECURITY-2705")
+    @Test
+    public void fileParameterShouldFailAtRuntime() throws Exception {
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition("input message: 'Please provide a file', parameters: [file('paco.txt')], id: 'Id'",true));
+
+        // get the build going, and wait until workflow pauses
+        QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
+        WorkflowRun b = q.waitForStart();
+
+        j.assertBuildStatus(Result.FAILURE, j.waitForCompletion(b));
+        assertThat(JenkinsRule.getLog(b), 
+                allOf(not(containsString(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME)), 
+                      containsString("https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters")));
     }
 
     @LocalData

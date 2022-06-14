@@ -7,6 +7,13 @@
   <h1>${it.input.message}</h1>
   <j:if test="${!it.completed}">
     <f:form method="post" action="${it.id}/submit" name="${it.id}">
+      <j:if test="${it.hasUnsafeParameters}">
+        <div class="alert alert-warning">
+        Support for <code>FileParameter</code>s will be removed in a future release.
+        Details on how to migrate your pipeline can be found 
+        <a rel="noopener noreferrer" href="https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters">online</a>.
+        </div>
+      </j:if>
       <j:forEach var="param" items="${it.input.parameters}">
         <j:set var="escapeEntryTitleAndDescription" value="true"/>
         <st:include page="index.jelly" it="${param}"/>
