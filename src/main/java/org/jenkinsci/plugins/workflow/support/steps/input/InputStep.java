@@ -1,11 +1,14 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.Util;
+import hudson.model.FileParameterDefinition;
 import hudson.model.ParameterDefinition;
 import hudson.model.PasswordParameterDefinition;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.model.ParameterDefinition.ParameterDescriptor;
 import hudson.util.Secret;
 import java.io.Serializable;
 import java.util.Collections;
@@ -247,5 +250,14 @@ public class InputStep extends AbstractStepImpl implements Serializable {
             }
             return newMap;
         }
+
+        /** For the pipeline syntax generator page. */
+        public List<ParameterDescriptor> getParametersDescriptors() {
+            // See SECURITY-2705 on why we ban FileParemeterDefinition
+            return ExtensionList.lookup(ParameterDescriptor.class).stream().
+                    filter(descriptor -> descriptor.clazz != FileParameterDefinition.class).
+                    collect(Collectors.toList());
+        }
     }
+
 }
