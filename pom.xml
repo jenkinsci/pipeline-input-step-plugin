@@ -38,14 +38,14 @@
     </pluginRepositories>
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
-        <jenkins.version>2.308</jenkins.version>
+        <jenkins.version>2.319.1</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.308.x</artifactId>
+                <artifactId>bom-2.319.x</artifactId>
                 <version>1289.v5c4b_1c43511b_</version>
                 <type>pom</type>
                 <scope>import</scope>
