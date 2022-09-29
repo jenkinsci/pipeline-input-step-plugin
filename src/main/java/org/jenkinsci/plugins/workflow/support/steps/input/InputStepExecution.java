@@ -119,6 +119,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
             // TODO would be even cooler to embed the parameter form right in the build log (hiding it after submission)
             listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, "Input requested"));
         }
+
+        // notify this input action is started
+        notifyInput(InputExtension.InputEvent.STARTED);
+
         return false;
     }
 
@@ -224,6 +228,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
         getNode().addAction(new InputSubmittedAction(approverId, params));
 
+        // notify this input action will proceed
+        notifyInput(InputExtension.InputEvent.PROCEEDED);
+
         Object v;
         if (params != null && params.size() == 1) {
             v = params.values().iterator().next();
@@ -267,6 +274,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         preAbortCheck();
 
         FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
+
+        // notify this input action was abort
+        notifyInput(InputExtension.InputEvent.ABORTED);
+
         outcome = new Outcome(null,e);
         postSettlement();
         getContext().onFailure(e);
@@ -274,6 +285,25 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         // TODO: record this decision to FlowNode
 
         return HttpResponses.ok();
+    }
+
+    private void notifyInput(InputExtension.InputEvent inputEvent) {
+        InputStep inputStep = this.getInput();
+        Jenkins.get().getExtensionList(InputExtension.class).forEach(input -> {
+            User currentUser = User.current();
+            final String userID;
+            if(currentUser != null) {
+                userID = currentUser.getId();
+            } else {
+                userID = null;
+            }
+
+            try {
+                input.notifyInput(inputStep, run, userID, listener, inputEvent);
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, null, e);
+            }
+        });
     }
 
     /**
