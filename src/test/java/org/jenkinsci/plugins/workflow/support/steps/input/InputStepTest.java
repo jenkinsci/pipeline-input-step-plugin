@@ -54,6 +54,7 @@ import java.io.IOException;
 
 import hudson.security.ACL;
 import hudson.security.ACLContext;
+import hudson.util.FormValidation.Kind;
 import hudson.util.Secret;
 import jenkins.model.IdStrategy;
 import jenkins.model.InterruptedBuildAction;
@@ -72,6 +73,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsMatchers;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.Arrays;
@@ -79,7 +81,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
-
+import org.jvnet.hudson.test.WithoutJenkins;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import org.jvnet.hudson.test.recipes.LocalData;
 
@@ -577,5 +579,37 @@ public class InputStepTest {
     private static String stringCredentialsInput(String id, String name) {
         return "input id: '" + id + "', message: '', parameters: [credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl', defaultValue: '', description: '', name: '" + name + "', required: true)]\n";
     }
+
+    @Test
+    @Issue("SECURITY-2880")
+    public void test_unsafe_ids_are_rejected() throws Exception {
+        WorkflowJob wf = j.jenkins.createProject(WorkflowJob.class, "foo");
+        wf.setDefinition(new CpsFlowDefinition("input message:'wait', id:'../&escape Me'", true));
+        // get the build going, and wait until workflow pauses
+        j.buildAndAssertStatus(Result.FAILURE, wf);
+    }
+
+    @Test
+    @WithoutJenkins
+    @Issue("SECURITY-2880")
+    public void test_unsafe_ids_generate_formValidation() throws Exception {
+        InputStep.DescriptorImpl d = new InputStep.DescriptorImpl();
+        assertThat("simple dash separated strings should be allowed", d.doCheckId("this-is-ok"), JenkinsMatchers.hasKind(Kind.OK));
+        assertThat("something more complex with safe characters should be allowed", d.doCheckId("this-is~*_(ok)!"), JenkinsMatchers.hasKind(Kind.OK));
+        
+        assertThat("dot should be rejected", d.doCheckId("."), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("dot dot should be rejected", d.doCheckId(".."), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("foo.bar should be allowed", d.doCheckId("foo.bar"), JenkinsMatchers.hasKind(Kind.OK));
+        
+        assertThat("ampersands should be rejected", d.doCheckId("this-is-&-not-ok"), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("% should be rejected", d.doCheckId("a-%-should-fail"), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("# should be rejected", d.doCheckId("a-#-should-fail"), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("' should be rejected", d.doCheckId("a-single-quote-should-fail'"), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("\" should be rejected", d.doCheckId("a-single-quote-should-fail\""), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("/ should be rejected", d.doCheckId("/this-is-also-not-ok"), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("< should be rejected", d.doCheckId("this-is-<also-not-ok"), JenkinsMatchers.hasKind(Kind.ERROR));
+        assertThat("> should be rejected", d.doCheckId("this-is-also>-not-ok"), JenkinsMatchers.hasKind(Kind.ERROR));
+    }
+
 
 }

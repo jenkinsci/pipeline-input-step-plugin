@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.input;
 
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Util;
@@ -9,6 +10,8 @@ import hudson.model.PasswordParameterDefinition;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.ParameterDefinition.ParameterDescriptor;
+import hudson.util.FormValidation;
+import hudson.util.FormValidation.Kind;
 import hudson.util.Secret;
 import java.io.Serializable;
 import java.util.Collections;
@@ -20,6 +23,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
+import jenkins.util.SystemProperties;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
 import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
@@ -31,8 +35,11 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 
 /**
  * {@link Step} that pauses for human input.
@@ -40,6 +47,9 @@ import org.kohsuke.stapler.DataBoundSetter;
  * @author Kohsuke Kawaguchi
  */
 public class InputStep extends AbstractStepImpl implements Serializable {
+
+    private static final boolean ALLOW_POTENTIALLY_UNSAFE_IDS = SystemProperties.getBoolean(InputStep.class.getName() + ".ALLOW_UNSAFE_IDS");
+
     private final String message;
 
     /**
@@ -78,7 +88,11 @@ public class InputStep extends AbstractStepImpl implements Serializable {
 
     @DataBoundSetter
     public void setId(String id) {
-        this.id = capitalize(Util.fixEmpty(id));
+        String _id = capitalize(Util.fixEmpty(id));
+        if (isIdConsideredUnsafe(_id)) {
+            throw new IllegalArgumentException("InputStep id is required to be URL safe, but the provided id " + _id +" is not safe");
+        }
+        this.id = _id;
     }
 
     public String getId() {
@@ -170,6 +184,26 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         return (DescriptorImpl)super.getDescriptor();
     }
 
+    /**
+     * check if potentialId is considered unsafe for use as an id.
+     * Even if it is unsafe this returns {@code false} if  {@link #ALLOW_POTENTIALLY_UNSAFE_IDS} is {@code true}
+     * @return {@code true} iff the id is unsafe and the escape hatch is not set
+     */
+    private boolean isIdConsideredUnsafe(String potentialId) {
+        if (ALLOW_POTENTIALLY_UNSAFE_IDS) {
+            /// it is still unsafe
+            return false;
+        }
+        return !getDescriptor().doCheckId(potentialId).kind.equals(Kind.OK);
+    }
+
+    private Object readResolve() throws AbortException {
+        if (isIdConsideredUnsafe(this.id)) {
+            throw new AbortException("InputStep id is required to be URL safe, but the provided id " + this.id +" is not safe");
+        }
+        return this;
+    }
+
     @Extension
     public static class DescriptorImpl extends StepDescriptor implements CustomDescribableModel {
 
@@ -257,6 +291,47 @@ public class InputStep extends AbstractStepImpl implements Serializable {
             return ExtensionList.lookup(ParameterDescriptor.class).stream().
                     filter(descriptor -> descriptor.clazz != FileParameterDefinition.class).
                     collect(Collectors.toList());
+        }
+
+        /**
+         * checks that the id is a valid ID.
+         * @param id the id to check
+         */
+        @Restricted(NoExternalUse.class)// jelly
+        public FormValidation doCheckId(@QueryParameter String id) {
+            // https://www.rfc-editor.org/rfc/rfc3986.txt
+            // URLs may only contain ascii
+            // and only some parts are allowed
+            //      segment       = *pchar
+            //      segment-nz    = 1*pchar
+            //      segment-nz-nc = 1*( unreserved / pct-encoded / sub-delims / "@" )
+            //                      ; non-zero-length segment without any colon ":"
+            //      pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+            //      unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+            //      sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+            //                      / "*" / "+" / "," / ";" / "="
+            
+            // but we are not allowing pct-encoded here.
+            // additionally "." and ".." should be rejected.
+            // and as we are using html / javascript in places we disallow "'"
+            // and to prevent escaping hell disallow "&"
+
+            // as well as anything unsafe we disallow . and .. (but we can have a dot inside the string so foo.bar is ok)
+            // also Jenkins dissallows ; in the request parameter so don't allow that either.
+            if (id == null || id.isEmpty()) {
+                // the id will be provided by a hash of the message
+                return FormValidation.ok();
+            }
+            if (id.equals(".")) {
+                return FormValidation.error("The ID is required to be URL safe and is limited to the characters a-z A-Z, the digits 0-9 and additionally the characters ':' '@' '=' '+' '$' ',' '-' '_' '.' '!' '~' '*' '(' ')'.");
+            }
+            if (id.equals("..")) {
+                return FormValidation.error("The ID is required to be URL safe and is limited to the characters a-z A-Z, the digits 0-9 and additionally the characters ':' '@' '=' '+' '$' ',' '-' '_' '.' '!' '~' '*' '(' ')'.");
+            }
+            if (!id.matches("^[a-zA-Z0-9[-]._~!$()*+,:@=]+$")) { // escape the - inside another [] so it does not become a range of , - _
+                return FormValidation.error("The ID is required to be URL safe and is limited to the characters a-z A-Z, the digits 0-9 and additionally the characters ':' '@' '=' '+' '$' ',' '-' '_' '.' '!' '~' '*' '(' ')'.");
+            }
+            return FormValidation.ok();
         }
     }
 
