@@ -6,6 +6,7 @@ import hudson.AbortException;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
+import hudson.model.Describable;
 import hudson.model.Failure;
 import hudson.model.FileParameterDefinition;
 import hudson.model.FileParameterValue;
@@ -20,6 +21,8 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.security.SecurityRealm;
+import hudson.util.FormValidation;
+import hudson.util.FormValidation.Kind;
 import hudson.util.HttpResponses;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
@@ -95,6 +98,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
                                          System.lineSeparator() + "Details on how to migrate your pipeline can be found online: " + 
                                           "https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters.");
             }
+        }
+        if (getHasUnsafeId()) {
+            getListener().getLogger().println("The following 'input' is using an unsafe 'id', please change the 'id' to prevent future breakage");
         }
 
         Run<?, ?> run = getRun();
@@ -454,6 +460,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     @Restricted(NoExternalUse.class) // jelly access only
     public boolean getHasUnsafeParameters() {
         return input.getParameters().stream().anyMatch(parameter -> parameter.getClass() == FileParameterDefinition.class);
+    }
+
+    @Restricted(NoExternalUse.class) // jelly access only
+    public boolean getHasUnsafeId() {
+        return ! input.getDescriptor().doCheckId(input.getId()).kind.equals(Kind.OK);
     }
 
     private static final long serialVersionUID = 1L;
