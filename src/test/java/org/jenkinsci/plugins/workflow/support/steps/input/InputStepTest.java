@@ -662,7 +662,7 @@ public class InputStepTest {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "def chosen = input message: 'Can we settle on this thing?', ok: 'Yep', parameters: [choice(choices: ['Apple', 'Blueberry', 'Banana'], description: 'The fruit in question.', name: 'fruit')], submitter: 'bobby', submitterParameter: 'dd'",
-                "echo(\"after: ${x}\");"),"\n"),true));
+                "echo(\"after: ${chosen}\");"),"\n"),true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -693,5 +693,11 @@ public class InputStepTest {
         assertEquals("fruit", param.getString("name"));
         assertEquals("ChoiceParameterDefinition", param.getString("type"));
         assertThat(param.getJSONArray("choices").toArray(), arrayContaining("Apple", "Blueberry", "Banana"));
+
+        InputAction inputAction = b.getAction(InputAction.class);
+        InputStepExecution is = inputAction.getExecutions().get(0);
+        HtmlPage p = webClient.getPage(b, inputAction.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+        j.assertBuildStatusSuccess(j.waitForCompletion(b));
     }
 }
