@@ -667,7 +667,7 @@ public class InputStepTest {
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
-        j.waitForMessage("Can we settle on this thing?", b);
+        j.waitForMessage("Input requested", b);
 
         final JenkinsRule.WebClient webClient = j.createWebClient();
         final JenkinsRule.JSONWebResponse json = webClient.getJSON(b.getUrl() + "api/json?depth=2");
@@ -685,7 +685,7 @@ public class InputStepTest {
         assertEquals("Can we settle on this thing?", exs.getString("displayName"));
         assertTrue(exs.has("input"));
         JSONObject input = exs.getJSONObject("input");
-        assertEquals("Can we settle on this thing?", input.getString("displayName"));
+        assertEquals("Can we settle on this thing?", input.getString("message"));
         assertEquals("Yep", input.getString("ok"));
         assertEquals("bobby", input.getString("submitter"));
         assertTrue(input.has("parameters"));
