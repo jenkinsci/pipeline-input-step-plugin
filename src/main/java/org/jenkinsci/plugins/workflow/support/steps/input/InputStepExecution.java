@@ -38,6 +38,8 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.export.Exported;
+import org.kohsuke.stapler.export.ExportedBean;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
@@ -61,6 +63,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 /**
  * @author Kohsuke Kawaguchi
  */
+@ExportedBean(defaultVisibility = 2)
 public class InputStepExecution extends AbstractStepExecutionImpl implements ModelObject {
 
     private static final Logger LOGGER = Logger.getLogger(InputStepExecution.class.getName());
@@ -142,10 +145,12 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         });
     }
 
+    @Exported
     public String getId() {
         return input.getId();
     }
 
+    @Exported
     public InputStep getInput() {
         return input;
     }
@@ -165,6 +170,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     /**
      * If this input step has been decided one way or the other.
      */
+    @Exported
     public boolean isSettled() {
         return outcome!=null;
     }
@@ -180,7 +186,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         return a;
     }
 
-    @Override
+    @Override @Exported
     public String getDisplayName() {
         String message = getInput().getMessage();
         if (message.length()<32)    return message;

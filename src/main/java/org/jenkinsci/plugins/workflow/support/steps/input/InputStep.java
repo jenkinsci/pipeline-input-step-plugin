@@ -40,12 +40,15 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.export.Exported;
+import org.kohsuke.stapler.export.ExportedBean;
 
 /**
  * {@link Step} that pauses for human input.
  *
  * @author Kohsuke Kawaguchi
  */
+@ExportedBean(defaultVisibility = 2)
 public class InputStep extends AbstractStepImpl implements Serializable {
 
     private static final boolean ALLOW_POTENTIALLY_UNSAFE_IDS = SystemProperties.getBoolean(InputStep.class.getName() + ".ALLOW_UNSAFE_IDS");
@@ -95,12 +98,14 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         this.id = _id;
     }
 
+    @Exported
     public String getId() {
         if (id==null)
             id = capitalize(Util.getDigestOf(message));
         return id;
     }
 
+    @Exported
     public String getSubmitter() {
         return submitter;
     }
@@ -109,6 +114,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         this.submitter = Util.fixEmptyAndTrim(submitter);
     }
 
+    @Exported
     public String getSubmitterParameter() { return submitterParameter; }
 
     @DataBoundSetter public void setSubmitterParameter(String submitterParameter) {
@@ -130,6 +136,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     /**
      * Caption of the OK button.
      */
+    @Exported
     public String getOk() {
         return ok!=null ? ok : Messages.proceed();
     }
@@ -138,6 +145,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         this.ok = Util.fixEmptyAndTrim(ok);
     }
 
+    @Exported
     public List<ParameterDefinition> getParameters() {
         return parameters;
     }
@@ -146,6 +154,7 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         this.parameters = parameters;
     }
 
+    @Exported
     public String getMessage() {
         return message;
     }

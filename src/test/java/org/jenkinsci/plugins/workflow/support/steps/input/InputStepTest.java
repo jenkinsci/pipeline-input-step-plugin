@@ -57,8 +57,9 @@ import hudson.security.ACLContext;
 import hudson.util.FormValidation.Kind;
 import hudson.util.Secret;
 import jenkins.model.IdStrategy;
-import jenkins.model.InterruptedBuildAction;
 import jenkins.model.Jenkins;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -78,6 +79,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
@@ -87,9 +89,8 @@ import org.jvnet.hudson.test.recipes.LocalData;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -611,5 +612,92 @@ public class InputStepTest {
         assertThat("> should be rejected", d.doCheckId("this-is-also>-not-ok"), JenkinsMatchers.hasKind(Kind.ERROR));
     }
 
+    @Test
+    public void test_api_contains_waitingForInput() throws Exception {
+        //set up dummy security real
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        // job setup
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
+                "def x = input message:'Continue?';",
+                "echo(\"after: ${x}\");"),"\n"),true));
 
+        // get the build going, and wait until workflow pauses
+        QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
+        WorkflowRun b = q.getStartCondition().get();
+        j.waitForMessage("Continue?", b);
+
+        final JenkinsRule.WebClient webClient = j.createWebClient();
+        JenkinsRule.JSONWebResponse json = webClient.getJSON(b.getUrl() + "api/json?depth=1");
+        JSONArray actions = json.getJSONObject().getJSONArray("actions");
+        Optional<Object> obj = actions.stream().filter(oo ->
+                ((JSONObject)oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
+        ).findFirst();
+        assertTrue(obj.isPresent());
+        JSONObject o = (JSONObject)obj.get();
+        assertTrue(o.has("waitingForInput"));
+        assertTrue(o.getBoolean("waitingForInput"));
+
+        InputAction inputAction = b.getAction(InputAction.class);
+        InputStepExecution is = inputAction.getExecutions().get(0);
+        HtmlPage p = webClient.getPage(b, inputAction.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+
+        json = webClient.getJSON(b.getUrl() + "api/json?depth=1");
+        actions = json.getJSONObject().getJSONArray("actions");
+        obj = actions.stream().filter(oo ->
+                ((JSONObject)oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
+        ).findFirst();
+        assertTrue(obj.isPresent());
+        o = (JSONObject)obj.get();
+        assertTrue(o.has("waitingForInput"));
+        assertFalse(o.getBoolean("waitingForInput"));
+    }
+
+    @Test
+    public void test_api_contains_details() throws Exception {
+        //set up dummy security real
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        // job setup
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
+                "def chosen = input message: 'Can we settle on this thing?', ok: 'Yep', parameters: [choice(choices: ['Apple', 'Blueberry', 'Banana'], description: 'The fruit in question.', name: 'fruit')], submitter: 'bobby', submitterParameter: 'dd'",
+                "echo(\"after: ${chosen}\");"),"\n"),true));
+
+        // get the build going, and wait until workflow pauses
+        QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
+        WorkflowRun b = q.getStartCondition().get();
+        j.waitForMessage("Input requested", b);
+
+        final JenkinsRule.WebClient webClient = j.createWebClient();
+        final JenkinsRule.JSONWebResponse json = webClient.getJSON(b.getUrl() + "api/json?depth=2");
+        final JSONArray actions = json.getJSONObject().getJSONArray("actions");
+        final Optional<Object> obj = actions.stream().filter(oo ->
+                ((JSONObject)oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
+        ).findFirst();
+        assertTrue(obj.isPresent());
+        final JSONObject o = (JSONObject)obj.get();
+        assertTrue(o.has("waitingForInput"));
+        assertTrue(o.getBoolean("waitingForInput"));
+
+        assertTrue(o.has("executions"));
+        JSONObject exs = o.getJSONArray("executions").getJSONObject(0);
+        assertEquals("Can we settle on this thing?", exs.getString("displayName"));
+        assertTrue(exs.has("input"));
+        JSONObject input = exs.getJSONObject("input");
+        assertEquals("Can we settle on this thing?", input.getString("message"));
+        assertEquals("Yep", input.getString("ok"));
+        assertEquals("bobby", input.getString("submitter"));
+        assertTrue(input.has("parameters"));
+        JSONObject param = input.getJSONArray("parameters").getJSONObject(0);
+        assertEquals("fruit", param.getString("name"));
+        assertEquals("ChoiceParameterDefinition", param.getString("type"));
+        assertThat(param.getJSONArray("choices").toArray(), arrayContaining("Apple", "Blueberry", "Banana"));
+
+        InputAction inputAction = b.getAction(InputAction.class);
+        InputStepExecution is = inputAction.getExecutions().get(0);
+        HtmlPage p = webClient.getPage(b, inputAction.getUrlName());
+        j.submit(p.getFormByName(is.getId()), "proceed");
+        j.assertBuildStatusSuccess(j.waitForCompletion(b));
+    }
 }

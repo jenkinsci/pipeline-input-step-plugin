@@ -17,10 +17,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.kohsuke.stapler.export.Exported;
+import org.kohsuke.stapler.export.ExportedBean;
 
 /**
  * Records the pending inputs required.
  */
+@ExportedBean
 public class InputAction implements RunAction2 {
 
     private static final Logger LOGGER = Logger.getLogger(InputAction.class.getName());
@@ -106,6 +109,7 @@ public class InputAction implements RunAction2 {
         }
     }
 
+    @Exported
     @Override
     public String getDisplayName() {
         if (ids == null || ids.isEmpty()) {
@@ -142,12 +146,18 @@ public class InputAction implements RunAction2 {
         return null;
     }
 
+    @Exported
     public synchronized List<InputStepExecution> getExecutions() throws InterruptedException, TimeoutException {
         loadExecutions();
         if (executions == null) {
             return Collections.emptyList();
         }
         return new ArrayList<InputStepExecution>(executions);
+    }
+
+    @Exported
+    public boolean isWaitingForInput() throws InterruptedException, TimeoutException {
+        return !getExecutions().isEmpty();
     }
 
     /**
