@@ -6,6 +6,7 @@ import hudson.AbortException;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.console.HyperlinkNote;
+import hudson.link.ConsoleURLProvider;
 import hudson.model.Describable;
 import hudson.model.Failure;
 import hudson.model.FileParameterDefinition;
@@ -199,6 +200,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     @RequirePOST
     public HttpResponse doSubmit(StaplerRequest request) throws IOException, ServletException, InterruptedException {
+        Run<?, ?> run = getRun();
         if (request.getParameter("proceed")!=null) {
             doProceed(request);
         } else {
@@ -206,7 +208,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
 
         // go back to the Run console page
-        return HttpResponses.redirectTo("../../console");
+        return HttpResponses.redirectTo(ConsoleURLProvider.get().getConsoleURL(run));
     }
 
     /**
