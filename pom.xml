@@ -39,8 +39,7 @@
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
         <jenkins.version>2.361.4</jenkins.version>
-        <!-- TODO: to remove https://github.com/jenkinsci/jenkins/pull/8321 -->
-        <jenkins.version>2.418-rc34038.d1f3a_a_29f872</jenkins.version>
+        <jenkins.version>2.418-rc34068.6491cb_b_a_fd22</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8321 -->
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
     <dependencyManagement>
@@ -115,13 +114,6 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials-binding</artifactId>
             <scope>test</scope>
-        </dependency>
-        <!-- TODO: to remove when display-url-api is released -->
-        <!-- TODO: https://github.com/jenkinsci/display-url-api-plugin/pull/194 -->
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>display-url-api</artifactId>
-            <version>2.3.8-rc192.b_b_660e9109f6</version>
         </dependency>
     </dependencies>
 </project>
