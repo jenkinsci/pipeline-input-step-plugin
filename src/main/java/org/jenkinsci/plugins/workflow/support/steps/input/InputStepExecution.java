@@ -24,6 +24,7 @@ import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
 import hudson.util.FormValidation.Kind;
 import hudson.util.HttpResponses;
+import jenkins.console.ConsoleUrlProvider;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
@@ -206,7 +207,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
 
         // go back to the Run console page
-        return HttpResponses.redirectTo("../../console");
+        return HttpResponses.redirectTo(ConsoleUrlProvider.getRedirectUrl(getRun()));
     }
 
     /**
