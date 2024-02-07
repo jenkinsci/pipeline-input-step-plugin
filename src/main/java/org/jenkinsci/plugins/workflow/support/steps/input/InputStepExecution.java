@@ -200,6 +200,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      */
     @RequirePOST
     public HttpResponse doSubmit(StaplerRequest request) throws IOException, ServletException, InterruptedException {
+        Run<?, ?> run = getRun();
         if (request.getParameter("proceed")!=null) {
             doProceed(request);
         } else {
@@ -207,7 +208,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
 
         // go back to the Run console page
-        return HttpResponses.redirectTo(ConsoleUrlProvider.getRedirectUrl(getRun()));
+        return HttpResponses.redirectTo(ConsoleUrlProvider.getRedirectUrl(run));
     }
 
     /**
