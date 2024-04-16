@@ -29,6 +29,7 @@ import com.cloudbees.plugins.credentials.CredentialsParameterValue;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import jenkins.model.CauseOfInterruption;
 import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
@@ -68,6 +69,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -101,12 +103,14 @@ import static org.junit.Assert.assertNotNull;
  * @author Kohsuke Kawaguchi
  */
 public class InputStepTest {
-    @Rule public JenkinsRule j = new JenkinsRule();
+    @Rule
+    public JenkinsRule j = new JenkinsRule();
 
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
 
-    @Rule public FlagRule<String> allowUnsafeParams = FlagRule.systemProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME, null);
+    @Rule
+    public FlagRule<String> allowUnsafeParams = FlagRule.systemProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME, null);
 
     /**
      * Try out a parameter.
@@ -122,7 +126,7 @@ public class InputStepTest {
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "echo('before');",
                 "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', parameters: [[$class: 'BooleanParameterDefinition', name: 'chocolate', defaultValue: false, description: 'Favorite icecream flavor']], submitter:'alice';",
-                "echo(\"after: ${x}\");"),"\n"),true));
+                "echo(\"after: ${x}\");"), "\n"), true));
 
 
         // get the build going, and wait until workflow pauses
@@ -130,7 +134,7 @@ public class InputStepTest {
         WorkflowRun b = q.getStartCondition().get();
         CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
 
-        while (b.getAction(InputAction.class)==null) {
+        while (b.getAction(InputAction.class) == null) {
             e.waitForSuspension();
         }
 
@@ -154,12 +158,11 @@ public class InputStepTest {
         q.get();
 
         // make sure the valid hyperlink of the approver is created in the build index page
-        HtmlAnchor pu =null;
+        HtmlAnchor pu = null;
 
         try {
             pu = p.getAnchorByText("alice");
-        }
-        catch(ElementNotFoundException ex){
+        } catch (ElementNotFoundException ex) {
             System.out.println("valid hyperlink of the approved does not appears on the build index page");
         }
 
@@ -187,7 +190,7 @@ public class InputStepTest {
         assertNotNull(inputSubmittedAction);
 
         assertEquals("alice", inputSubmittedAction.getApprover());
-        Map<String,Object> submittedParams = inputSubmittedAction.getParameters();
+        Map<String, Object> submittedParams = inputSubmittedAction.getParameters();
         assertEquals(1, submittedParams.size());
         assertTrue(submittedParams.containsKey("chocolate"));
         assertEquals(false, submittedParams.get("chocolate"));
@@ -199,11 +202,11 @@ public class InputStepTest {
         JenkinsRule.WebClient webClient = j.createWebClient();
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-        // Only give "alice" and "bob" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "alice"
-        // and "bob" are listed as the submitter.
-            grant(Jenkins.READ, Job.READ).everywhere().to("alice", "bob").
-        // Give "charlie" basic privs + Job.CANCEL.  That should allow user3 cancel.
-            grant(Jenkins.READ, Job.READ, Job.CANCEL).everywhere().to("charlie"));
+                // Only give "alice" and "bob" basic privs. That's normally not enough to Job.CANCEL, only for the fact that "alice"
+                // and "bob" are listed as the submitter.
+                        grant(Jenkins.READ, Job.READ).everywhere().to("alice", "bob").
+                // Give "charlie" basic privs + Job.CANCEL.  That should allow user3 cancel.
+                        grant(Jenkins.READ, Job.READ, Job.CANCEL).everywhere().to("charlie"));
 
         final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes', submitter: 'alice'", true));
@@ -220,9 +223,9 @@ public class InputStepTest {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
                 // Only give "alice" basic privs. She can not proceed since she doesn't have build permissions.
-                grant(Jenkins.READ, Job.READ).everywhere().to("alice").
+                        grant(Jenkins.READ, Job.READ).everywhere().to("alice").
                 // Give "bob" basic privs + Job.BUILD.  That should allow bob proceed.
-                grant(Jenkins.READ, Job.READ, Job.BUILD).everywhere().to("bob"));
+                        grant(Jenkins.READ, Job.READ, Job.BUILD).everywhere().to("bob"));
 
         final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes'", true));
@@ -263,7 +266,7 @@ public class InputStepTest {
     }
 
     @Test
-    @Issue({"JENKINS-31396","JENKINS-40594"})
+    @Issue({"JENKINS-31396", "JENKINS-40594"})
     public void test_submitter_parameter() throws Exception {
         //set up dummy security real
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
@@ -271,7 +274,7 @@ public class InputStepTest {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitter:'alice,bob', submitterParameter: 'approval';",
-                "echo(\"after: ${x}\");"),"\n"),true));
+                "echo(\"after: ${x}\");"), "\n"), true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -309,7 +312,7 @@ public class InputStepTest {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitterParameter: 'approval';",
-                "echo(\"after: ${x}\");"),"\n"),true));
+                "echo(\"after: ${x}\");"), "\n"), true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -397,8 +400,31 @@ public class InputStepTest {
         }
     }
 
+    @Test
+    public void abortPreviousBuilds() throws Exception {
+        //Create a new job and set the AbortPreviousBuildsJobProperty
+        WorkflowJob job = j.createProject(WorkflowJob.class, "myJob");
+        job.setDefinition(new CpsFlowDefinition("input 'proceed?'", true));
+        DisableConcurrentBuildsJobProperty jobProperty = new DisableConcurrentBuildsJobProperty();
+        jobProperty.setAbortPrevious(true);
+        job.addProperty(jobProperty);
+        job.save();
+
+        //Run the job and wait for the input step
+        WorkflowRun run1 = job.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("proceed", run1);
+
+        //run another job and wait for the input step
+        WorkflowRun run2 = job.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("proceed", run2);
+
+        //check that the first job has been aborted with the result of NOT_BUILT
+        j.assertBuildStatus(Result.NOT_BUILT, j.waitForCompletion(run1));
+    }
+
     @Issue("JENKINS-38380")
-    @Test public void timeoutAuth() throws Exception {
+    @Test
+    public void timeoutAuth() throws Exception {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().grant(Jenkins.ADMINISTER).everywhere().to("ops"));
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
@@ -478,9 +504,9 @@ public class InputStepTest {
         WorkflowJob p = j.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
                 "def password = input(message: 'Proceed?', id: 'MyId', parameters: [\n" +
-                "  password(name: 'myPassword', defaultValue: 'mySecret', description: 'myDescription')\n" +
-                "])\n" +
-                "echo('Password is ' + password)", true));
+                        "  password(name: 'myPassword', defaultValue: 'mySecret', description: 'myDescription')\n" +
+                        "])\n" +
+                        "echo('Password is ' + password)", true));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         while (b.getAction(InputAction.class) == null) {
             Thread.sleep(100);
@@ -501,7 +527,7 @@ public class InputStepTest {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition("node {\n" +
                 "input message: 'Please provide a file', parameters: [file('paco.txt')], id: 'Id' \n" +
-                " }",true));
+                " }", true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -525,30 +551,31 @@ public class InputStepTest {
 
         j.assertBuildStatus(Result.SUCCESS, j.waitForCompletion(b));
         assertTrue(new File(b.getRootDir(), "paco.txt").exists());
-        assertThat(JenkinsRule.getLog(b), 
+        assertThat(JenkinsRule.getLog(b),
                 allOf(containsString(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME),
-                      containsString("will be removed in a future release"),
-                      containsString("https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters")));
+                        containsString("will be removed in a future release"),
+                        containsString("https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters")));
     }
 
     @Issue("SECURITY-2705")
     @Test
     public void fileParameterShouldFailAtRuntime() throws Exception {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition("input message: 'Please provide a file', parameters: [file('paco.txt')], id: 'Id'",true));
+        foo.setDefinition(new CpsFlowDefinition("input message: 'Please provide a file', parameters: [file('paco.txt')], id: 'Id'", true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.waitForStart();
 
         j.assertBuildStatus(Result.FAILURE, j.waitForCompletion(b));
-        assertThat(JenkinsRule.getLog(b), 
-                allOf(not(containsString(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME)), 
-                      containsString("https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters")));
+        assertThat(JenkinsRule.getLog(b),
+                allOf(not(containsString(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME)),
+                        containsString("https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters")));
     }
 
     @LocalData
-    @Test public void serialForm() throws Exception {
+    @Test
+    public void serialForm() throws Exception {
         WorkflowJob p = j.jenkins.getItemByFullName("p", WorkflowJob.class);
         WorkflowRun b = p.getBuildByNumber(1);
         JenkinsRule.WebClient wc = j.createWebClient();
@@ -597,11 +624,11 @@ public class InputStepTest {
         InputStep.DescriptorImpl d = new InputStep.DescriptorImpl();
         assertThat("simple dash separated strings should be allowed", d.doCheckId("this-is-ok"), JenkinsMatchers.hasKind(Kind.OK));
         assertThat("something more complex with safe characters should be allowed", d.doCheckId("this-is~*_(ok)!"), JenkinsMatchers.hasKind(Kind.OK));
-        
+
         assertThat("dot should be rejected", d.doCheckId("."), JenkinsMatchers.hasKind(Kind.ERROR));
         assertThat("dot dot should be rejected", d.doCheckId(".."), JenkinsMatchers.hasKind(Kind.ERROR));
         assertThat("foo.bar should be allowed", d.doCheckId("foo.bar"), JenkinsMatchers.hasKind(Kind.OK));
-        
+
         assertThat("ampersands should be rejected", d.doCheckId("this-is-&-not-ok"), JenkinsMatchers.hasKind(Kind.ERROR));
         assertThat("% should be rejected", d.doCheckId("a-%-should-fail"), JenkinsMatchers.hasKind(Kind.ERROR));
         assertThat("# should be rejected", d.doCheckId("a-#-should-fail"), JenkinsMatchers.hasKind(Kind.ERROR));
@@ -620,7 +647,7 @@ public class InputStepTest {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "def x = input message:'Continue?';",
-                "echo(\"after: ${x}\");"),"\n"),true));
+                "echo(\"after: ${x}\");"), "\n"), true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -631,10 +658,10 @@ public class InputStepTest {
         JenkinsRule.JSONWebResponse json = webClient.getJSON(b.getUrl() + "api/json?depth=1");
         JSONArray actions = json.getJSONObject().getJSONArray("actions");
         Optional<Object> obj = actions.stream().filter(oo ->
-                ((JSONObject)oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
+                ((JSONObject) oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
         ).findFirst();
         assertTrue(obj.isPresent());
-        JSONObject o = (JSONObject)obj.get();
+        JSONObject o = (JSONObject) obj.get();
         assertTrue(o.has("waitingForInput"));
         assertTrue(o.getBoolean("waitingForInput"));
 
@@ -646,10 +673,10 @@ public class InputStepTest {
         json = webClient.getJSON(b.getUrl() + "api/json?depth=1");
         actions = json.getJSONObject().getJSONArray("actions");
         obj = actions.stream().filter(oo ->
-                ((JSONObject)oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
+                ((JSONObject) oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
         ).findFirst();
         assertTrue(obj.isPresent());
-        o = (JSONObject)obj.get();
+        o = (JSONObject) obj.get();
         assertTrue(o.has("waitingForInput"));
         assertFalse(o.getBoolean("waitingForInput"));
     }
@@ -662,7 +689,7 @@ public class InputStepTest {
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
                 "def chosen = input message: 'Can we settle on this thing?', ok: 'Yep', parameters: [choice(choices: ['Apple', 'Blueberry', 'Banana'], description: 'The fruit in question.', name: 'fruit')], submitter: 'bobby', submitterParameter: 'dd'",
-                "echo(\"after: ${chosen}\");"),"\n"),true));
+                "echo(\"after: ${chosen}\");"), "\n"), true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -673,10 +700,10 @@ public class InputStepTest {
         final JenkinsRule.JSONWebResponse json = webClient.getJSON(b.getUrl() + "api/json?depth=2");
         final JSONArray actions = json.getJSONObject().getJSONArray("actions");
         final Optional<Object> obj = actions.stream().filter(oo ->
-                ((JSONObject)oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
+                ((JSONObject) oo).get("_class").equals("org.jenkinsci.plugins.workflow.support.steps.input.InputAction")
         ).findFirst();
         assertTrue(obj.isPresent());
-        final JSONObject o = (JSONObject)obj.get();
+        final JSONObject o = (JSONObject) obj.get();
         assertTrue(o.has("waitingForInput"));
         assertTrue(o.getBoolean("waitingForInput"));
 

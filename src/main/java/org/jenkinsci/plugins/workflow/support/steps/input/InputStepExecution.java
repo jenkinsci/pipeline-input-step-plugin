@@ -138,8 +138,8 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         Timer.get().submit(new Runnable() {
             @Override public void run() {
                 try (ACLContext context = ACL.as(ACL.SYSTEM)) {
-                    doAbort();
-                } catch (IOException | InterruptedException x) {
+                    doAbort(cause);
+                } catch (Exception x) {
                     LOGGER.log(Level.WARNING, "failed to abort " + getContext(), x);
                 }
             }
@@ -199,12 +199,12 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * Called from the form via browser to submit/abort this input step.
      */
     @RequirePOST
-    public HttpResponse doSubmit(StaplerRequest request) throws IOException, ServletException, InterruptedException {
+    public HttpResponse doSubmit(StaplerRequest request) throws Exception {
         Run<?, ?> run = getRun();
         if (request.getParameter("proceed")!=null) {
             doProceed(request);
         } else {
-            doAbort();
+            doAbort(new FlowInterruptedException(Result.ABORTED, new Rejection(User.current())));
         }
 
         // go back to the Run console page
@@ -277,13 +277,13 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * REST endpoint to abort the workflow.
      */
     @RequirePOST
-    public HttpResponse doAbort() throws IOException, InterruptedException {
+    public HttpResponse doAbort(Throwable cause) throws Exception{
+
         preAbortCheck();
 
-        FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
-        outcome = new Outcome(null,e);
+        outcome = new Outcome(null, cause);
         postSettlement();
-        getContext().onFailure(e);
+        getContext().onFailure(cause);
 
         // TODO: record this decision to FlowNode
 
