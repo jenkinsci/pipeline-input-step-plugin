@@ -68,6 +68,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -395,6 +396,28 @@ public class InputStepTest {
             run.doStop();
             j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(run));
         }
+    }
+
+    @Test
+    public void abortPreviousBuilds() throws Exception {
+        //Create a new job and set the AbortPreviousBuildsJobProperty
+        WorkflowJob job = j.createProject(WorkflowJob.class, "myJob");
+        job.setDefinition(new CpsFlowDefinition("input 'proceed?'", true));
+        DisableConcurrentBuildsJobProperty jobProperty = new DisableConcurrentBuildsJobProperty();
+        jobProperty.setAbortPrevious(true);
+        job.addProperty(jobProperty);
+        job.save();
+
+        //Run the job and wait for the input step
+        WorkflowRun run1 = job.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("proceed", run1);
+
+        //run another job and wait for the input step
+        WorkflowRun run2 = job.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("proceed", run2);
+
+        //check that the first job has been aborted with the result of NOT_BUILT
+        j.assertBuildStatus(Result.NOT_BUILT, j.waitForCompletion(run1));
     }
 
     @Issue("JENKINS-38380")

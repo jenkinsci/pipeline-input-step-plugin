@@ -134,16 +134,18 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     @Override
     public void stop(Throwable cause) throws Exception {
+        outcome = new Outcome(null,cause);
         // JENKINS-37154: we might be inside the VM thread, so do not do anything which might block on the VM thread
         Timer.get().submit(new Runnable() {
             @Override public void run() {
                 try (ACLContext context = ACL.as(ACL.SYSTEM)) {
-                    doAbort();
+                   postSettlement();
                 } catch (IOException | InterruptedException x) {
                     LOGGER.log(Level.WARNING, "failed to abort " + getContext(), x);
                 }
             }
         });
+        super.stop(cause);
     }
 
     @Exported
