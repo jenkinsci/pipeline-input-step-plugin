@@ -77,6 +77,11 @@ public class InputStep extends AbstractStepImpl implements Serializable {
     private List<ParameterDefinition> parameters = Collections.emptyList();
 
     /**
+     * Caption of the Cancel button.
+     */
+    private String cancel;
+
+    /**
      * Caption of the OK button.
      */
     private String ok;
@@ -131,6 +136,18 @@ public class InputStep extends AbstractStepImpl implements Serializable {
         if ('a'<=ch && ch<='z')
             id = ((char)(ch-'a'+'A')) + id.substring(1);
         return id;
+    }
+
+    /**
+     * Caption of the Cancel button.
+     */
+    @Exported
+    public String getCancel() {
+        return cancel!=null ? cancel : Messages.abort();
+    }
+
+    @DataBoundSetter public void setCancel(String cancel) {
+        this.cancel = Util.fixEmptyAndTrim(cancel);
     }
 
     /**

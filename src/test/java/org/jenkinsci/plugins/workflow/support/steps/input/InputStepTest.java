@@ -207,7 +207,7 @@ public class InputStepTest {
             grant(Jenkins.READ, Job.READ, Job.CANCEL).everywhere().to("charlie"));
 
         final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes', submitter: 'alice'", true));
+        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', cancel: 'No', ok: 'Yes', submitter: 'alice'", true));
 
         runAndAbort(webClient, foo, "alice", true);   // alice should work coz she's declared as 'submitter'
         runAndAbort(webClient, foo, "bob", false);    // bob shouldn't work coz he's not declared as 'submitter' and doesn't have Job.CANCEL privs
@@ -226,7 +226,7 @@ public class InputStepTest {
                 grant(Jenkins.READ, Job.READ, Job.BUILD).everywhere().to("bob"));
 
         final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes'", true));
+        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', cancel: 'No', ok: 'Yes'", true));
 
         // alice should not work coz she doesn't have Job.BUILD privs
         runAndContinue(webClient, foo, "alice", false);
@@ -253,7 +253,7 @@ public class InputStepTest {
                         grant(Jenkins.ADMINISTER).everywhere().to("admin"));
 
         final WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', ok: 'Yes', submitter: 'alice,BoB'", true));
+        foo.setDefinition(new CpsFlowDefinition("input id: 'InputX', message: 'OK?', cancel: 'No', ok: 'Yes', submitter: 'alice,BoB'", true));
 
         runAndAbort(webClient, foo, "alice", true);   // alice should work coz she's declared as 'submitter'
         assertEquals(IdStrategy.CASE_INSENSITIVE, j.jenkins.getSecurityRealm().getUserIdStrategy());
@@ -361,7 +361,7 @@ public class InputStepTest {
             j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(run));
         } catch (Exception e) {
             assertFalse(expectAbortOk);
-            j.waitForMessage("Yes or Abort", run);
+            j.waitForMessage("Yes or No", run);
             run.doStop();
             j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(run));
         }
@@ -392,7 +392,7 @@ public class InputStepTest {
             j.assertBuildStatusSuccess(j.waitForCompletion(run)); // Should be successful.
         } catch (Exception e) {
             assertFalse(expectContinueOk);
-            j.waitForMessage("Yes or Abort", run);
+            j.waitForMessage("Yes or No", run);
             run.doStop();
             j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(run));
         }
@@ -684,7 +684,7 @@ public class InputStepTest {
         // job setup
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
-                "def chosen = input message: 'Can we settle on this thing?', ok: 'Yep', parameters: [choice(choices: ['Apple', 'Blueberry', 'Banana'], description: 'The fruit in question.', name: 'fruit')], submitter: 'bobby', submitterParameter: 'dd'",
+                "def chosen = input message: 'Can we settle on this thing?', cancel: 'Nope', ok: 'Yep', parameters: [choice(choices: ['Apple', 'Blueberry', 'Banana'], description: 'The fruit in question.', name: 'fruit')], submitter: 'bobby', submitterParameter: 'dd'",
                 "echo(\"after: ${chosen}\");"),"\n"),true));
 
         // get the build going, and wait until workflow pauses
@@ -709,6 +709,7 @@ public class InputStepTest {
         assertTrue(exs.has("input"));
         JSONObject input = exs.getJSONObject("input");
         assertEquals("Can we settle on this thing?", input.getString("message"));
+        assertEquals("Nope", input.getString("cancel"));
         assertEquals("Yep", input.getString("ok"));
         assertEquals("bobby", input.getString("submitter"));
         assertTrue(input.has("parameters"));

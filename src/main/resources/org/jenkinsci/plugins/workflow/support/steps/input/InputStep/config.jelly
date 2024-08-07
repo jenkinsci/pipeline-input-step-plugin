@@ -32,6 +32,9 @@ THE SOFTWARE.
         <f:entry field="id" title="${%Custom ID}">
             <f:textbox/>
         </f:entry>
+        <f:entry field="cancel" title="${%Cancel Button Caption}">
+            <f:textbox/>
+        </f:entry>
         <f:entry field="ok" title="${%OK Button Caption}">
             <f:textbox/>
         </f:entry>
