@@ -14,8 +14,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
@@ -63,31 +62,29 @@ public class InputAction implements RunAction2 {
     private synchronized void loadExecutions() throws InterruptedException, TimeoutException {
         if (executions == null) {
             try {
-            FlowExecution execution = null;
-            for (FlowExecution _execution : FlowExecutionList.get()) {
-                if (_execution.getOwner().getExecutable() == run) {
-                    execution = _execution;
-                    break;
-                }
-            }
-            if (execution != null) {
-                List<StepExecution> candidateExecutions = execution.getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS);
-                executions = new ArrayList<>(); // only set this if we know the answer
-                // JENKINS-37154 sometimes we must block here in order to get accurate results
-                for (StepExecution se : candidateExecutions) {
-                    if (se instanceof InputStepExecution) {
-                        InputStepExecution ise = (InputStepExecution) se;
-                        if (ids.contains(ise.getId())) {
-                            executions.add(ise);
+                if (run instanceof FlowExecutionOwner.Executable) {
+                    var feo = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
+                    if (feo != null) {
+                        var candidateExecutions = feo.get().getCurrentExecutions(true).get(LOAD_EXECUTIONS_TIMEOUT, TimeUnit.SECONDS);
+                        executions = new ArrayList<>(); // only set this if we know the answer
+                        // JENKINS-37154 sometimes we must block here in order to get accurate results
+                        for (StepExecution se : candidateExecutions) {
+                            if (se instanceof InputStepExecution) {
+                                InputStepExecution ise = (InputStepExecution) se;
+                                if (ids.contains(ise.getId())) {
+                                    executions.add(ise);
+                                }
+                            }
                         }
+                        if (executions.size() < ids.size()) {
+                            LOGGER.log(Level.WARNING, "some input IDs not restored from {0}", run);
+                        }
+                    } else {
+                        LOGGER.warning(() -> "no FlowExecutionOwner obtainable from " + run);
                     }
+                } else {
+                    LOGGER.warning(() -> "unrecognized build type " + run);
                 }
-                if (executions.size() < ids.size()) {
-                    LOGGER.log(Level.WARNING, "some input IDs not restored from {0}", run);
-                }
-            } else {
-                LOGGER.log(Level.WARNING, "no flow execution found for {0}", run);
-            }
             } catch (InterruptedException | TimeoutException x) {
                 throw x;
             } catch (Exception x) {
