@@ -4,8 +4,8 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.86</version>
-        <relativePath />
+        <version>4.88</version>
+        <relativePath/>
     </parent>
     <artifactId>pipeline-input-step</artifactId>
     <version>${changelist}</version>
@@ -38,15 +38,17 @@
     </pluginRepositories>
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
-        <jenkins.version>2.440.3</jenkins.version>
+        <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
+        <jenkins.baseline>2.452</jenkins.baseline>
+        <jenkins.version>${jenkins.baseline}.4</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.440.x</artifactId>
-                <version>3056.v53343b_a_b_a_850</version>
+                <artifactId>bom-${jenkins.baseline}.x</artifactId>
+                <version>3893.v213a_42768d35</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
