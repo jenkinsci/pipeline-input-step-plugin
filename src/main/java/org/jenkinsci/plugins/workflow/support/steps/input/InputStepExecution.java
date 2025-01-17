@@ -24,9 +24,11 @@ import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
 import hudson.util.FormValidation.Kind;
 import hudson.util.HttpResponses;
+import io.jenkins.servlet.ServletExceptionWrapper;
 import jenkins.console.ConsoleUrlProvider;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
+import jenkins.security.stapler.StaplerNotDispatchable;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
@@ -39,12 +41,13 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -201,7 +204,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * Called from the form via browser to submit/abort this input step.
      */
     @RequirePOST
-    public HttpResponse doSubmit(StaplerRequest request) throws IOException, ServletException, InterruptedException {
+    public HttpResponse doSubmit(StaplerRequest2 request) throws IOException, ServletException, InterruptedException {
         Run<?, ?> run = getRun();
         if (request.getParameter("proceed")!=null) {
             doProceed(request);
@@ -217,15 +220,28 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * REST endpoint to submit the input.
      */
     @RequirePOST
-    public HttpResponse doProceed(StaplerRequest request) throws IOException, ServletException, InterruptedException {
+    public HttpResponse doProceed(StaplerRequest2 request) throws IOException, ServletException, InterruptedException {
         preSubmissionCheck();
         Map<String,Object> v = parseValue(request);
         return proceed(v);
     }
 
     /**
+     * @deprecated use {@link #doProceed(StaplerRequest2)}
+     */
+    @Deprecated
+    @StaplerNotDispatchable
+    public HttpResponse doProceed(StaplerRequest req) throws IOException, javax.servlet.ServletException, InterruptedException {
+        try {
+            return doProceed(StaplerRequest.toStaplerRequest2(req));
+        } catch (ServletException e) {
+            throw ServletExceptionWrapper.fromJakartaServletException(e);
+        }
+    }
+
+    /**
      * Processes the acceptance (approval) request.
-     * This method is used by both {@link #doProceedEmpty()} and {@link #doProceed(StaplerRequest)}
+     * This method is used by both {@link #doProceedEmpty()} and {@link #doProceed(StaplerRequest2)}
      *
      * @param params A map that represents the parameters sent in the request
      * @return A HttpResponse object that represents Status code (200) indicating the request succeeded normally.
@@ -397,7 +413,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     /**
      * Parse the submitted {@link ParameterValue}s
      */
-    private Map<String,Object> parseValue(StaplerRequest request) throws ServletException, IOException, InterruptedException {
+    private Map<String,Object> parseValue(StaplerRequest2 request) throws ServletException, IOException, InterruptedException {
         Map<String, Object> mapResult = new HashMap<String, Object>();
         List<ParameterDefinition> defs = input.getParameters();
         Set<ParameterValue> vals = new HashSet<>(defs.size());
