@@ -141,7 +141,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         // JENKINS-37154: we might be inside the VM thread, so do not do anything which might block on the VM thread
         Timer.get().submit(new Runnable() {
             @Override public void run() {
-                try (ACLContext context = ACL.as(ACL.SYSTEM)) {
+                try (ACLContext context = ACL.as2(ACL.SYSTEM2)) {
                    postSettlement();
                 } catch (IOException | InterruptedException x) {
                     LOGGER.log(Level.WARNING, "failed to abort " + getContext(), x);
@@ -443,7 +443,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
         Run<?, ?> run = getRun();
         CredentialsParameterBinder binder = CredentialsParameterBinder.getOrCreate(run);
-        String userId = Jenkins.getAuthentication().getName();
+        String userId = Jenkins.getAuthentication2().getName();
         for (ParameterValue val : vals) {
             if (val instanceof CredentialsParameterValue) {
                 binder.bindCredentialsParameter(userId, (CredentialsParameterValue) val);
