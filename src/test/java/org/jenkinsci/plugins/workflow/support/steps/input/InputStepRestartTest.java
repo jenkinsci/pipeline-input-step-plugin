@@ -36,11 +36,13 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
+
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -97,11 +99,7 @@ public class InputStepRestartTest {
                 WorkflowRun b = j.jenkins.getItemByFullName("p", WorkflowJob.class).getBuildByNumber(1);
                 assertNotNull(b);
                 assertTrue(b.isBuilding());
-                Executor executor;
-                while ((executor = b.getExecutor()) == null) {
-                    Thread.sleep(100); // probably a race condition: AfterRestartTask could take a moment to be registered
-                }
-                assertNotNull(executor);
+                Executor executor = await().until(b::getExecutor, notNullValue());
                 executor.interrupt();
                 j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(b));
                 sanity(b);
