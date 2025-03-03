@@ -18,9 +18,9 @@ A specific identifier could be used, for example, to mechanically respond to the
    input id: '2', message: 'input-message'
 
 
-Input Example with `OK Button Caption`(Optional):
+Input Example with `Cancel Button Caption` and `OK Button Caption` (Optional):
 
-   input message: 'input-message', ok: 'OK'
+   input message: 'input-message', cancel: 'Cancel', ok: 'OK'
 
 Input Example with `Allowed Submitter`:
 Usernames and/or external group names of those permitted to respond to the input, separated by ','. Spaces will be trimmed automatically, so "Alice, Bob, Charles" is the same as "Alice,Bob,Charles".
