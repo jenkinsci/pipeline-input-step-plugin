@@ -24,11 +24,9 @@ import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
 import hudson.util.FormValidation.Kind;
 import hudson.util.HttpResponses;
-import io.jenkins.servlet.ServletExceptionWrapper;
 import jenkins.console.ConsoleUrlProvider;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
-import jenkins.security.stapler.StaplerNotDispatchable;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
@@ -40,7 +38,6 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
@@ -224,19 +221,6 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         preSubmissionCheck();
         Map<String,Object> v = parseValue(request);
         return proceed(v);
-    }
-
-    /**
-     * @deprecated use {@link #doProceed(StaplerRequest2)}
-     */
-    @Deprecated
-    @StaplerNotDispatchable
-    public HttpResponse doProceed(StaplerRequest req) throws IOException, javax.servlet.ServletException, InterruptedException {
-        try {
-            return doProceed(StaplerRequest.toStaplerRequest2(req));
-        } catch (ServletException e) {
-            throw ServletExceptionWrapper.fromJakartaServletException(e);
-        }
     }
 
     /**
