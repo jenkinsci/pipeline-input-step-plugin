@@ -24,7 +24,7 @@ Input Example with `Cancel Button Caption` and `OK Button Caption` (Optional):
 
 Input Example with `Allowed Submitter`:
 Usernames and/or external group names of those permitted to respond to the input, separated by ','. Spaces will be trimmed automatically, so "Alice, Bob, Charles" is the same as "Alice,Bob,Charles".
-Note: Jenkins administrators are able to respond to the input regardless of the value of this parameter.
+Note: Jenkins administrators are able to respond to the input regardless of the value of this parameter. Users with [**Job/cancel** permission](https://www.jenkins.io/doc/book/security/access-control/permissions/#job-permissions) may also respond with 'Abort' to the input.
 
    input message: '', submitter: 'jenkins-user, jenkins-user2'
 
