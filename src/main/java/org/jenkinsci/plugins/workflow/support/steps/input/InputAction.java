@@ -58,7 +58,6 @@ public class InputAction implements RunAction2 {
         }
     }
 
-    @SuppressFBWarnings(value="EC_UNRELATED_TYPES_USING_POINTER_EQUALITY", justification="WorkflowRun implements Queue.Executable")
     private synchronized void loadExecutions() throws InterruptedException, TimeoutException {
         if (executions == null) {
             try {
