@@ -7,7 +7,7 @@
   <h1>${it.input.message}</h1>
   <j:if test="${!it.completed}">
   <j:new var="u" className="hudson.Util" />
-    <f:form method="post" action="${u.rawEncode(it.id)}/submit" name="${it.id}">
+    <f:form method="post" action="${u.rawEncode(it.id)}/submit" name="${it.id}" class="jenkins-form">
       <j:if test="${it.hasUnsafeParameters}">
         <div class="alert alert-warning">
         Support for <code>FileParameter</code>s will be removed in a future release.
@@ -25,10 +25,10 @@
         <j:set var="escapeEntryTitleAndDescription" value="true"/>
         <st:include page="index.jelly" it="${param}"/>
       </j:forEach>
-      <f:block>
+      <f:bottomButtonBar>
         <f:submit value="${it.input.ok}" name="proceed"/>
-        <f:submit value="${it.input.cancel}" name="abort"/>
-      </f:block>
+        <f:submit value="${it.input.cancel}" name="abort" primary="false"/>
+      </f:bottomButtonBar>
     </f:form>
   </j:if>
 </j:jelly>
