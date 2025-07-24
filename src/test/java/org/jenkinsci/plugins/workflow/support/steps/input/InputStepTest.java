@@ -331,7 +331,7 @@ public class InputStepTest {
             wc.login("alice");
             HtmlPage console = wc.getPage(b, "console");
             HtmlElement proceedLink = console.getFirstByXPath("//a[text()='Purchase icecream']");
-            proceedLink.click();
+            HtmlElementUtil.click(proceedLink);
         }
         assertEquals(0, a.getExecutions().size());
         q.get();
