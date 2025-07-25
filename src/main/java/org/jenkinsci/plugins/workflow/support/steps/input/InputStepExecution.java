@@ -294,11 +294,10 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     private Map<String, Object> handleSubmitterParameter() {
         String valueName = input.getSubmitterParameter();
         String userId = Jenkins.getAuthentication2().getName();
-        Map<String,Object> mapResult = new HashMap<>();
         if (valueName != null && !valueName.isEmpty()) {
-            mapResult.put(valueName, userId);
+            return Map.of(valueName, userId);
         }
-        return mapResult;
+        return null;
     }
 
     /**
