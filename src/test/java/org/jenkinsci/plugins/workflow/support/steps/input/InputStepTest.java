@@ -33,6 +33,7 @@ import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
 import org.htmlunit.html.HtmlAnchor;
+import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlElementUtil;
 import org.htmlunit.html.HtmlFileInput;
 import org.htmlunit.html.HtmlForm;
@@ -277,7 +278,7 @@ public class InputStepTest {
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
-        j.waitForMessage("Input requested", b);
+        j.waitForMessage("Purchase icecream", b);
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
@@ -288,12 +289,13 @@ public class InputStepTest {
         assertEquals("alice,bob", is.getInput().getSubmitter());
 
         // submit the input, and run workflow to the completion
-        JenkinsRule.WebClient wc = j.createWebClient();
-        wc.login("alice");
-        HtmlPage console_page = wc.getPage(b, "console");
-        assertFalse(console_page.asXml().contains("proceedEmpty"));
-        HtmlPage p = wc.getPage(b, a.getUrlName());
-        j.submit(p.getFormByName(is.getId()), "proceed");
+        try (JenkinsRule.WebClient wc = j.createWebClient()) {
+            wc.login("alice");
+            HtmlPage console = wc.getPage(b, "console");
+            HtmlElement proceedLink = console.getFirstByXPath("//a[text()='Purchase icecream']");
+            HtmlElementUtil.click(proceedLink);
+        }
+
         assertEquals(0, a.getExecutions().size());
         q.get();
 
@@ -315,7 +317,7 @@ public class InputStepTest {
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
-        j.waitForMessage("Input requested", b);
+        j.waitForMessage("Purchase icecream", b);
 
         // make sure we are pausing at the right state that reflects what we wrote in the program
         InputAction a = b.getAction(InputAction.class);
@@ -325,10 +327,12 @@ public class InputStepTest {
         assertEquals("Do you want chocolate?", is.getInput().getMessage());
 
         // submit the input, and run workflow to the completion
-        JenkinsRule.WebClient wc = j.createWebClient();
-        wc.login("alice");
-        HtmlPage p = wc.getPage(b, a.getUrlName());
-        j.submit(p.getFormByName(is.getId()), "proceed");
+        try (JenkinsRule.WebClient wc = j.createWebClient()) {
+            wc.login("alice");
+            HtmlPage console = wc.getPage(b, "console");
+            HtmlElement proceedLink = console.getFirstByXPath("//a[text()='Purchase icecream']");
+            HtmlElementUtil.click(proceedLink);
+        }
         assertEquals(0, a.getExecutions().size());
         q.get();
 
