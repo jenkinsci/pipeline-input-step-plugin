@@ -33,7 +33,7 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
