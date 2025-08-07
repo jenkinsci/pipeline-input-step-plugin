@@ -61,7 +61,6 @@ import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
@@ -79,7 +78,6 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsMatchers;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -121,11 +119,11 @@ public class InputStepTest {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         // job setup
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
-                "echo('before');",
-                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', parameters: [[$class: 'BooleanParameterDefinition', name: 'chocolate', defaultValue: false, description: 'Favorite icecream flavor']], submitter:'alice';",
-                "echo(\"after: ${x}\");"),"\n"),true));
-
+        foo.setDefinition(new CpsFlowDefinition("""
+            echo('before')
+            def x = input message: 'Do you want chocolate?', id: 'Icecream', ok: 'Purchase icecream', parameters: [[$class: 'BooleanParameterDefinition', name: 'chocolate', defaultValue: false, description: 'Favorite icecream flavor']], submitter: 'alice'
+            echo "after: $x"
+            """, true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -271,9 +269,10 @@ public class InputStepTest {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         // job setup
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
-                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitter:'alice,bob', submitterParameter: 'approval';",
-                "echo(\"after: ${x}\");"),"\n"),true));
+        foo.setDefinition(new CpsFlowDefinition("""
+            def x = input message: 'Do you want chocolate?', id: 'Icecream', ok: 'Purchase icecream', submitter: 'alice,bob', submitterParameter: 'approval'
+            echo "after: $x"
+            """, true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -310,9 +309,10 @@ public class InputStepTest {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         // job setup
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
-                "def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitterParameter: 'approval';",
-                "echo(\"after: ${x}\");"),"\n"),true));
+        foo.setDefinition(new CpsFlowDefinition("""
+            def x = input message:'Do you want chocolate?', id:'Icecream', ok: 'Purchase icecream', submitterParameter: 'approval'
+            echo "after: $x"
+            """, true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -645,9 +645,10 @@ public class InputStepTest {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         // job setup
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
-                "def x = input message:'Continue?';",
-                "echo(\"after: ${x}\");"),"\n"),true));
+        foo.setDefinition(new CpsFlowDefinition("""
+            def x = input message:'Continue?'
+            echo "after: $x"
+            """, true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
@@ -687,9 +688,10 @@ public class InputStepTest {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         // job setup
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList(
-                "def chosen = input message: 'Can we settle on this thing?', cancel: 'Nope', ok: 'Yep', parameters: [choice(choices: ['Apple', 'Blueberry', 'Banana'], description: 'The fruit in question.', name: 'fruit')], submitter: 'bobby', submitterParameter: 'dd'",
-                "echo(\"after: ${chosen}\");"),"\n"),true));
+        foo.setDefinition(new CpsFlowDefinition("""
+            def chosen = input message: 'Can we settle on this thing?', cancel: 'Nope', ok: 'Yep', parameters: [choice(choices: ['Apple', 'Blueberry', 'Banana'], description: 'The fruit in question.', name: 'fruit')], submitter: 'bobby', submitterParameter: 'dd'
+            echo "after: $chosen"
+            """, true));
 
         // get the build going, and wait until workflow pauses
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
