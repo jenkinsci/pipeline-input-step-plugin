@@ -126,7 +126,7 @@
         <dependency>
             <groupId>org.jenkins-ci.main</groupId>
             <artifactId>jenkins-test-harness-htmlunit</artifactId>
-            <version>224.vfe7343c2ff83</version>
+            <version>225.v7d540e18a_8f4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
