@@ -28,17 +28,26 @@ import java.util.Collections;
 
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.steps.StepConfigTester;
-import org.junit.Test;
-import static org.junit.Assert.*;
-import org.junit.Rule;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class InputStepConfigTest {
+@WithJenkins
+class InputStepConfigTest {
     
-    @Rule public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
 
-    @Test public void configRoundTrip() throws Exception {
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        r = rule;
+    }
+
+    @Test
+    void configRoundTrip() throws Exception {
         InputStep s1 = new InputStep("hello world");
         InputStep s2 = new StepConfigTester(r).configRoundTrip(s1);
         assertEquals(s1.getMessage(), s2.getMessage());
@@ -49,7 +58,8 @@ public class InputStepConfigTest {
     }
 
     @Issue("JENKINS-25779")
-    @Test public void uninstantiate() throws Exception {
+    @Test
+    void uninstantiate() {
         InputStep s = new InputStep("hello world");
         assertEquals(Collections.singletonMap("message", s.getMessage()), DescribableModel.uninstantiate_(s));
     }
