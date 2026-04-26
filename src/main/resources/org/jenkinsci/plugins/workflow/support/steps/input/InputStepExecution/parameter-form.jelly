@@ -1,0 +1,34 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:f="/lib/form">
+  <j:if test="${!it.completed}">
+    <f:form method="post" action="${action}" name="${it.id}" class="${formClass}">
+      <j:if test="${it.hasUnsafeParameters}">
+        <div class="jenkins-form-item--medium">
+          <div class="alert alert-warning">
+            Support for <code>FileParameter</code>s will be removed in a future release.
+            Details on how to migrate your pipeline can be found
+            <a rel="noopener noreferrer" href="https://jenkins.io/redirect/plugin/pipeline-input-step/file-parameters">online</a>.
+          </div>
+        </div>
+      </j:if>
+      <j:if test="${it.hasUnsafeId}">
+        <div class="jenkins-form-item--medium">
+          <div class="alert alert-warning">
+            The input is using a URL unsafe id ("<code>${it.id}</code>").<br/>
+            Ids should be restricted to characters that are URL safe that do not need encoding such as ASCII alpha numeric and a limited set of punctuation.
+          </div>
+        </div>
+      </j:if>
+      <j:forEach var="param" items="${it.input.parameters}">
+        <j:set var="escapeEntryTitleAndDescription" value="true"/>
+        <div class="jenkins-form-item--medium">
+          <st:include page="index.jelly" it="${param}"/>
+        </div>
+      </j:forEach>
+      <f:bottomButtonBar>
+        <f:submit value="${it.input.ok}" name="proceed"/>
+        <f:submit value="${it.input.cancel}" name="abort" primary="false"/>
+      </f:bottomButtonBar>
+    </f:form>
+  </j:if>
+</j:jelly>

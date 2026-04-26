@@ -1,0 +1,9 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:st="jelly:stapler">
+  <st:setHeader name="X-Dialog-Title" value="${it.input.message}"/>
+  <l:ajax>
+    <j:set var="action" value="dialogSubmit"/>
+    <j:set var="formClass" value="jenkins-form input-step-dialog-form"/>
+    <st:include page="parameter-form.jelly"/>
+  </l:ajax>
+</j:jelly>
