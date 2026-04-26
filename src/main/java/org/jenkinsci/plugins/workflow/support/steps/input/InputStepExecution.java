@@ -5,7 +5,6 @@ import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import hudson.AbortException;
 import hudson.FilePath;
 import hudson.Util;
-import hudson.console.HyperlinkNote;
 import hudson.model.Failure;
 import hudson.model.FileParameterDefinition;
 import hudson.model.FileParameterValue;
@@ -39,6 +38,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -124,9 +124,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
                     POSTHyperlinkNote.encodeTo(thisUrl + "proceedEmpty", input.getOk()),
                     POSTHyperlinkNote.encodeTo(thisUrl + "abort", input.getCancel()));
         } else {
-            // TODO listener.hyperlink(…) does not work; why?
             // TODO would be even cooler to embed the parameter form right in the build log (hiding it after submission)
-            listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, "Input requested"));
+            String thisUrl = baseUrl + Util.rawEncode(getId()) + "/dialog";
+            listener.getLogger().println(DialogHyperlinkNote.encodeTo(thisUrl, "Input requested"));
         }
         return false;
     }
@@ -210,6 +210,29 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
         // go back to the Run console page
         return HttpResponses.redirectTo(ConsoleUrlProvider.getRedirectUrl(run));
+    }
+
+    /**
+     * Called from the console page for submitting the step when it has parameters.
+     */
+    @RequirePOST
+    public HttpResponse doDialogSubmit(StaplerRequest2 request) throws IOException, ServletException, InterruptedException {
+        // The dialog form has two submit buttons (proceed/abort), but Jenkins core's wizard
+        // submitter does not include the clicked button's value. Our adjunct script.js
+        // captures the click and writes the chosen action to the "inputAction" hidden field.
+        if ("proceed".equals(request.getParameter("inputAction"))) {
+            doProceed(request);
+        } else {
+            doAbort();
+        }
+        String body = "<form class=\"input-step-dialog-completed\" style=\"display:none\"></form>";
+        return new HttpResponse() {
+            @Override
+            public void generateResponse(StaplerRequest2 req, StaplerResponse2 rsp, Object node) throws IOException {
+                rsp.setContentType("text/html;charset=UTF-8");
+                rsp.getWriter().write(body);
+            }
+        };
     }
 
     /**
