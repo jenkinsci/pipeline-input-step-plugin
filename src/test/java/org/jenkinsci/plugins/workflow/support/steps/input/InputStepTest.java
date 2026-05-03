@@ -87,6 +87,10 @@ import org.jvnet.hudson.test.WithoutJenkins;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import org.jvnet.hudson.test.recipes.LocalData;
 
+import static jenkins.test.RunMatchers.completed;
+import static jenkins.test.RunMatchers.isSuccessful;
+import static jenkins.test.RunMatchers.logContains;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.arrayContaining;
@@ -729,5 +733,102 @@ public class InputStepTest {
         HtmlPage p = webClient.getPage(b, inputAction.getUrlName());
         j.submit(p.getFormByName(is.getId()), "proceed");
         j.assertBuildStatusSuccess(j.waitForCompletion(b));
+    }
+
+    @Test
+    public void approveWithParametersSucceeds() throws Exception {
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition(
+                "def x = input message: 'choose', id: 'Icecream', parameters: [booleanParam(name: 'chocolate', defaultValue: false)]\n"
+                        + "echo \"after: $x\"",
+                true));
+        WorkflowRun b = foo.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("Input requested", b);
+
+        try (JenkinsRule.WebClient wc = j.createWebClient()) {
+            HtmlPage console = wc.getPage(b, "console");
+
+            HtmlElement opener = console.querySelector(".input-step-dialog-opener");
+            assertNotNull("dialog opener button rendered on console", opener);
+            HtmlElementUtil.click(opener);
+
+            HtmlForm form = console.querySelector("form.input-step-dialog-form");
+            assertNotNull("dialog form mounted after click", form);
+            HtmlElement chocolate = form.querySelector("input[type='checkbox'][name='value']");
+            assertNotNull(chocolate);
+            HtmlElementUtil.click(chocolate);
+            HtmlElement proceed = form.querySelector("button[name='proceed']");
+            assertNotNull(proceed);
+            HtmlElementUtil.click(proceed);
+        }
+        j.assertLogContains("after: true", b);
+        await().until(() -> b, completed());
+        assertThat(b, isSuccessful());
+    }
+
+    @Test
+    public void rejectWithParametersAbortsBuild() throws Exception {
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition(
+                "input message: 'OK?', id: 'Bye', parameters: [booleanParam(name: 'flag', defaultValue: false)]", true));
+        WorkflowRun b = foo.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("Input requested", b);
+
+        try (JenkinsRule.WebClient wc = j.createWebClient()) {
+            HtmlPage console = wc.getPage(b, "console");
+
+            HtmlElement opener = console.querySelector(".input-step-dialog-opener");
+            assertNotNull("dialog opener button rendered on console", opener);
+            HtmlElementUtil.click(opener);
+
+            HtmlForm form = console.querySelector("form.input-step-dialog-form");
+            assertNotNull("dialog form mounted after click", form);
+            HtmlElement abort = form.querySelector("button[name='abort']");
+            assertNotNull(abort);
+            HtmlElementUtil.click(abort);
+        }
+        await().until(() -> b, completed());
+        j.assertBuildStatus(Result.ABORTED, b);
+    }
+
+    @Test
+    public void approveWithCredentialsParameterSucceeds() throws Exception {
+        String credentialsId = UUID.randomUUID().toString();
+            CredentialsProvider.lookupStores(j.jenkins).iterator().next().addCredentials(
+                    Domain.global(),
+                    new StringCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, null, Secret.fromString("s3cret")));
+
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition(
+                "def picked = input message: 'pick', id: 'C', parameters: [credentials("
+                        + "credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl',"
+                        + " name: 'cred', required: true, defaultValue: '', description: '')]\n"
+                        + "echo \"after: $picked\"",
+                true));
+        WorkflowRun b = foo.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("Input requested", b);
+
+        try (JenkinsRule.WebClient wc = j.createWebClient()) {
+            HtmlPage console = wc.getPage(b, "console");
+
+            HtmlElement opener = console.querySelector(".input-step-dialog-opener");
+            assertNotNull("dialog opener button rendered on console", opener);
+            HtmlElementUtil.click(opener);
+
+            HtmlForm form = console.querySelector("form.input-step-dialog-form");
+            assertNotNull("dialog form mounted after click", form);
+            // The credentials adjunct fills the select via an AJAX call once Behaviour attaches.
+            // If the script tags weren't re-run after innerHTML, this dropdown would be empty.
+            await().atMost(java.time.Duration.ofSeconds(10))
+                    .until(() -> form.getSelectByName("_.value").getOptions().stream()
+                            .anyMatch(o -> credentialsId.equals(o.getValueAttribute())));
+            form.getSelectByName("_.value").setSelectedAttribute(credentialsId, true);
+            HtmlElement proceed = form.querySelector("button[name='proceed']");
+            assertNotNull(proceed);
+            HtmlElementUtil.click(proceed);
+        }
+        await().until(() -> b, completed());
+        assertThat(b, isSuccessful());
+        assertThat(b, logContains("after: " + credentialsId));
     }
 }
