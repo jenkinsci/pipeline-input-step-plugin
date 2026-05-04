@@ -57,6 +57,7 @@
   function mountInputStepDialog(html, dialogUrl, titleText, onClose) {
     const dialog = document.createElement("dialog");
     dialog.className = "jenkins-dialog";
+    dialog.style = "min-width: 450px;"
     dialog.append(buildTitleBar(dialog, titleText), buildContents(html, dialogUrl));
     document.body.appendChild(dialog);
 
