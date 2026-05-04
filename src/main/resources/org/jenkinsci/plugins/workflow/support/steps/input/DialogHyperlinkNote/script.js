@@ -77,11 +77,6 @@
     };
     dialog.addEventListener("close", cleanup, {once: true});
     dialog.addEventListener("cancel", cleanup, {once: true});
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) {
-        cleanup();
-      }
-    });
 
     dialog.showModal();
   }
