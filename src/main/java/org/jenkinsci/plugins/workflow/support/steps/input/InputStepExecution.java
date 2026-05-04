@@ -228,6 +228,15 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     /**
+     * @deprecated use {@link #doProceed(StaplerRequest2,StaplerResponse2)}
+     */
+    @Deprecated
+    @StaplerNotDispatchable
+    public HttpResponse doProceed(StaplerRequest2 request) throws IOException, ServletException, InterruptedException {
+        return doProceed(request, null);
+    }
+
+    /**
      * REST endpoint to submit the input.
      */
     @RequirePOST
