@@ -5,6 +5,7 @@ import com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder;
 import hudson.AbortException;
 import hudson.FilePath;
 import hudson.Util;
+import hudson.console.HyperlinkNote;
 import hudson.model.Failure;
 import hudson.model.FileParameterDefinition;
 import hudson.model.FileParameterValue;
@@ -22,7 +23,6 @@ import hudson.security.SecurityRealm;
 import hudson.util.FormValidation.Kind;
 import hudson.util.HttpResponses;
 import io.jenkins.servlet.ServletExceptionWrapper;
-import jakarta.servlet.http.HttpServletResponse;
 import jenkins.console.ConsoleUrlProvider;
 import jenkins.model.IdStrategy;
 import jenkins.model.Jenkins;
@@ -39,7 +39,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerRequest2;
-import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -125,8 +124,9 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
                     POSTHyperlinkNote.encodeTo(thisUrl + "proceedEmpty", input.getOk()),
                     POSTHyperlinkNote.encodeTo(thisUrl + "abort", input.getCancel()));
         } else {
-            String thisUrl = baseUrl + Util.rawEncode(getId()) + "/dialog";
-            listener.getLogger().println(DialogHyperlinkNote.encodeTo(thisUrl, "Input requested"));
+            // TODO listener.hyperlink(…) does not work; why?
+            // TODO would be even cooler to embed the parameter form right in the build log (hiding it after submission)
+            listener.getLogger().println(HyperlinkNote.encodeTo(baseUrl, "Input requested"));
         }
         return false;
     }
@@ -200,12 +200,12 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
      * Called from the form via browser to submit/abort this input step.
      */
     @RequirePOST
-    public HttpResponse doSubmit(StaplerRequest2 request, StaplerResponse2 rsp) throws IOException, ServletException, InterruptedException {
+    public HttpResponse doSubmit(StaplerRequest2 request) throws IOException, ServletException, InterruptedException {
         Run<?, ?> run = getRun();
         if (request.getParameter("proceed")!=null) {
-            doProceed(request, rsp);
+            doProceed(request);
         } else {
-            doAbort(request, rsp);
+            doAbort();
         }
 
         // go back to the Run console page
@@ -213,51 +213,23 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     /**
-     * Called from the console page for submitting the step when it has parameters.
-     */
-    @RequirePOST
-    public HttpResponse doDialogSubmit(StaplerRequest2 request, StaplerResponse2 rsp) throws IOException, ServletException, InterruptedException {
-        String inputAction = request.getParameter("inputAction");
-        if ("proceed".equals(inputAction)) {
-            return doProceed(request, rsp);
-        } else if ("abort".equals(inputAction)) {
-            return doAbort(request, rsp);
-        } else {
-            return HttpResponses.errorWithoutStack(400, "invalid inputAction");
-        }
-    }
-
-    /**
-     * @deprecated use {@link #doProceed(StaplerRequest2,StaplerResponse2)}
-     */
-    @Deprecated
-    @StaplerNotDispatchable
-    public HttpResponse doProceed(StaplerRequest2 request) throws IOException, ServletException, InterruptedException {
-        return doProceed(request, null);
-    }
-
-    /**
      * REST endpoint to submit the input.
      */
     @RequirePOST
-    public HttpResponse doProceed(StaplerRequest2 request, StaplerResponse2 rsp) throws IOException, ServletException, InterruptedException {
-        HttpResponse httpResponse = preSubmissionCheck(request);
-        if (httpResponse != null && rsp != null) {
-            rsp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return httpResponse;
-        }
+    public HttpResponse doProceed(StaplerRequest2 request) throws IOException, ServletException, InterruptedException {
+        preSubmissionCheck();
         Map<String,Object> v = parseValue(request);
         return proceed(v);
     }
 
     /**
-     * @deprecated use {@link #doProceed(StaplerRequest2,StaplerResponse2)}
+     * @deprecated use {@link #doProceed(StaplerRequest2)}
      */
     @Deprecated
     @StaplerNotDispatchable
     public HttpResponse doProceed(StaplerRequest req) throws IOException, javax.servlet.ServletException, InterruptedException {
         try {
-            return doProceed(StaplerRequest.toStaplerRequest2(req), null);
+            return doProceed(StaplerRequest.toStaplerRequest2(req));
         } catch (ServletException e) {
             throw ServletExceptionWrapper.fromJakartaServletException(e);
         }
@@ -265,7 +237,7 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     /**
      * Processes the acceptance (approval) request.
-     * This method is used by both {@link #doProceedEmpty(StaplerRequest2, StaplerResponse2)} and {@link #doProceed(StaplerRequest2, StaplerResponse2)}
+     * This method is used by both {@link #doProceedEmpty()} and {@link #doProceed(StaplerRequest2)}
      *
      * @param params A map that represents the parameters sent in the request
      * @return A HttpResponse object that represents Status code (200) indicating the request succeeded normally.
@@ -306,24 +278,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     /**
-     * @deprecated use {@link #doProceedEmpty(StaplerRequest2, StaplerResponse2)}
-     */
-    @Deprecated
-    @StaplerNotDispatchable
-    public HttpResponse doProceedEmpty() throws IOException, InterruptedException {
-        return doProceedEmpty(null, null);
-    }
-
-    /**
      * Used from the Proceed hyperlink when no parameters are defined.
      */
     @RequirePOST
-    public HttpResponse doProceedEmpty(StaplerRequest2 request, StaplerResponse2 rsp) throws IOException, InterruptedException {
-        HttpResponse httpResponse = preSubmissionCheck(request);
-        if (httpResponse != null) {
-            rsp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return httpResponse;
-        }
+    public HttpResponse doProceedEmpty() throws IOException, InterruptedException {
+        preSubmissionCheck();
 
         Map<String, Object> mapResult = handleSubmitterParameter();
         return proceed(mapResult);
@@ -339,24 +298,11 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     /**
-     * @deprecated use {@link #doAbort(StaplerRequest2,StaplerResponse2)}
-     */
-    @Deprecated
-    @StaplerNotDispatchable
-    public HttpResponse doAbort() throws IOException, InterruptedException {
-        return doAbort(null, null);
-    }
-
-    /**
      * REST endpoint to abort the workflow.
      */
     @RequirePOST
-    public HttpResponse doAbort(StaplerRequest2 request, StaplerResponse2 rsp) throws IOException, InterruptedException {
-        HttpResponse httpResponse = preAbortCheck(request);
-        if (httpResponse != null) {
-            rsp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return httpResponse;
-        }
+    public HttpResponse doAbort() throws IOException, InterruptedException {
+        preAbortCheck();
 
         FlowInterruptedException e = new FlowInterruptedException(Result.ABORTED, new Rejection(User.current()));
         outcome = new Outcome(null,e);
@@ -370,70 +316,32 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
 
     /**
      * Check if the current user can abort/cancel the run from the input.
-     *
-     * @return
      */
-    private HttpResponse preAbortCheck(StaplerRequest2 request) throws IOException, InterruptedException {
-        boolean jsonError = request != null && request.getRequestURI().endsWith("dialogSubmit");
+    private void preAbortCheck() throws IOException, InterruptedException {
         if (isSettled()) {
-            String message = "This input has been already given";
-            if (jsonError) {
-                return HttpResponses.errorJSON(message);
-            }
-            throw new Failure(message);
+            throw new Failure("This input has been already given");
         } if (!canCancel() && !canSubmit()) {
-            String message;
             if (input.getSubmitter() != null) {
-                message = "You need to be '" + input.getSubmitter() + "' (or have Job/Cancel permissions) to cancel this.";
+                throw new Failure("You need to be '" + input.getSubmitter() + "' (or have Job/Cancel permissions) to cancel this.");
             } else {
-                message = "You need to have Job/Cancel permissions to cancel this.";
-            }
-
-            if (jsonError) {
-                return HttpResponses.errorJSON(message);
-            } else {
-                throw new Failure(message);
+                throw new Failure("You need to have Job/Cancel permissions to cancel this.");
             }
         }
-        return null;
-    }
-
-    /**
-     * @deprecated use {@link #preSubmissionCheck(StaplerRequest2)}
-     */
-    @Deprecated
-    public void preSubmissionCheck() throws IOException, InterruptedException {
-        preSubmissionCheck(null);
     }
 
     /**
      * Check if the current user can submit the input.
-     *
-     * @return
      */
-    public HttpResponse preSubmissionCheck(StaplerRequest2 request) throws IOException, InterruptedException {
-        boolean jsonError = request != null && request.getRequestURI().endsWith("dialogSubmit");
-        if (isSettled()) {
-            String message = "This input has been already given";
-            if (jsonError) {
-                return HttpResponses.errorJSON(message);
-            }
-            throw new Failure(message);
-        }
+    public void preSubmissionCheck() throws IOException, InterruptedException {
+        if (isSettled())
+            throw new Failure("This input has been already given");
         if (!canSubmit()) {
-            String message;
             if (input.getSubmitter() != null) {
-                message = "You need to be " + input.getSubmitter() + " to submit this.";
+                throw new Failure("You need to be " + input.getSubmitter() + " to submit this.");
             } else {
-                message = "You need to have Job/Build permissions to submit this.";
-            }
-            if (jsonError) {
-                return HttpResponses.errorJSON(message);
-            } else {
-                throw new Failure(message);
+                throw new Failure("You need to have Job/Build permissions to submit this.");
             }
         }
-        return null;
     }
 
     private void postSettlement() throws IOException, InterruptedException {

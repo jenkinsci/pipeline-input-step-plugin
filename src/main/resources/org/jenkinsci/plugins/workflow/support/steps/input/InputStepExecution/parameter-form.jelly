@@ -1,7 +1,10 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:f="/lib/form">
   <j:if test="${!it.completed}">
-    <f:form method="post" action="${action}" name="${it.id}" class="${formClass}">
+
+    <j:new var="u" className="hudson.Util"/>
+
+    <f:form method="post" action="${u.rawEncode(it.id)}/submit" name="${it.id}" class="${formClass}">
       <j:if test="${it.hasUnsafeParameters}">
         <div class="jenkins-form-item--medium">
           <div class="alert alert-warning">

@@ -4,8 +4,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
   <h1>${it.input.message}</h1>
-  <j:new var="u" className="hudson.Util"/>
-  <j:set var="action" value="${u.rawEncode(it.id)}/submit"/>
+
   <j:set var="formClass" value="jenkins-form"/>
   <st:include page="parameter-form.jelly"/>
 </j:jelly>
