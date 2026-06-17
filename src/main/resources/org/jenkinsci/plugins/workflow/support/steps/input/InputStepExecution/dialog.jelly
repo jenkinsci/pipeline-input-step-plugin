@@ -1,6 +1,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:st="jelly:stapler">
-  <st:setHeader name="X-Dialog-Title" value="${it.input.message}"/>
+  <j:set var="safeDialogTitle" value="${it.input.message == null ? '' : it.input.message.replaceAll('[\\x00-\\x1F\\x7F]', ' ')}"/>
+  <st:setHeader name="X-Dialog-Title" value="${safeDialogTitle}"/>
   <l:ajax>
     <j:set var="formClass" value="jenkins-form input-step-dialog-form"/>
     <st:include page="parameter-form.jelly"/>
