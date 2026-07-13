@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.support.steps.input;
 import hudson.model.Executor;
 import hudson.model.Result;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
@@ -39,22 +40,27 @@ import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
 
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.*;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.BuildWatcher;
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.JenkinsSessionRule;
+import org.jvnet.hudson.test.junit.jupiter.BuildWatcherExtension;
+import org.jvnet.hudson.test.junit.jupiter.JenkinsSessionExtension;
 
-public class InputStepRestartTest {
+class InputStepRestartTest {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsSessionRule sessions = new JenkinsSessionRule();
+    @SuppressWarnings("unused")
+    @RegisterExtension
+    private static final BuildWatcherExtension BUILD_WATCHER = new BuildWatcherExtension();
+
+    @RegisterExtension
+    private final JenkinsSessionExtension sessions = new JenkinsSessionExtension();
 
     @Issue("JENKINS-25889")
-    @Test public void restart() throws Throwable {
+    @Test
+    void restart() throws Throwable {
         sessions.then(j -> {
                 WorkflowJob p = j.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("input 'paused'", true));
@@ -83,12 +89,13 @@ public class InputStepRestartTest {
         }
         assertEquals(1, pauses.size());
         assertFalse(pauses.get(0).isPaused());
-        String xml = FileUtils.readFileToString(new File(b.getRootDir(), "build.xml"));
-        assertFalse(xml, xml.contains(InputStepExecution.class.getName()));
+        String xml = FileUtils.readFileToString(new File(b.getRootDir(), "build.xml"), StandardCharsets.UTF_8);
+        assertFalse(xml.contains(InputStepExecution.class.getName()), xml);
     }
 
     @Issue("JENKINS-37154")
-    @Test public void interrupt() throws Throwable {
+    @Test
+    void interrupt() throws Throwable {
         sessions.then(j -> {
                 WorkflowJob p = j.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("catchError {input 'paused'}", true));
