@@ -194,6 +194,22 @@ public class InputStepTest {
     }
 
     @Test
+    public void dialogTitleHeader() throws Exception {
+        WorkflowJob p = j.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "input id: 'InputX', message: 'About to archive 0 artifact(s).\\nProceed?', parameters: [string(name: 'paths')]", true));
+        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("Input requested", b);
+
+        JenkinsRule.WebClient wc = j.createWebClient();
+        String title = wc.goTo(b.getUrl() + "input/InputX/dialog").getWebResponse().getResponseHeaderValue("X-Dialog-Title");
+        assertEquals("About to archive 0 artifact(s). Proceed?", title);
+
+        b.getAction(InputAction.class).getExecution("InputX").doAbort();
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(b));
+    }
+
+    @Test
     @Issue("JENKINS-26363")
     public void test_cancel_run_by_input() throws Exception {
         JenkinsRule.WebClient webClient = j.createWebClient();
