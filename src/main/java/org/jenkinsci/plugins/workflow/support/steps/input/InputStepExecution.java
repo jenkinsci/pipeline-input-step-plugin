@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import jenkins.util.SystemProperties;
 import jenkins.util.Timer;
@@ -489,6 +490,19 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
         }
     }
 
+    /**
+     * The input message as a single-line value for the {@code X-Dialog-Title} response header.
+     * HTTP/2 rejects field values containing control characters or with leading or trailing whitespace.
+     */
+    @Restricted(NoExternalUse.class) // jelly access only
+    public String getDialogTitle() {
+        String message = input.getMessage();
+        if (message == null) {
+            return "";
+        }
+        return CONTROL_CHARACTERS.matcher(message).replaceAll(" ").strip();
+    }
+
     @Restricted(NoExternalUse.class) // jelly access only
     public boolean getHasUnsafeParameters() {
         return input.getParameters().stream().anyMatch(parameter -> parameter.getClass() == FileParameterDefinition.class);
@@ -500,4 +514,6 @@ public class InputStepExecution extends AbstractStepExecutionImpl implements Mod
     }
 
     private static final long serialVersionUID = 1L;
+
+    private static final Pattern CONTROL_CHARACTERS = Pattern.compile("[\\x00-\\x1F\\x7F]");
 }
