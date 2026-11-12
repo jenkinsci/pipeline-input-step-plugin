@@ -68,7 +68,6 @@ import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -83,6 +82,7 @@ import java.util.UUID;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.WithoutJenkins;
 import org.jvnet.hudson.test.junit.jupiter.BuildWatcherExtension;
+import org.jvnet.hudson.test.junit.jupiter.FlagExtension;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.jvnet.hudson.test.recipes.LocalData;
 
@@ -106,21 +106,13 @@ class InputStepTest {
 
     private JenkinsRule r;
 
-    private String allowUnsafeParams;
+    @SuppressWarnings("unused")
+    @RegisterExtension
+    private final FlagExtension<String> allowUnsafeParams = FlagExtension.systemProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME, null);
 
     @BeforeEach
     void beforeEach(JenkinsRule rule) {
         r = rule;
-        allowUnsafeParams = System.clearProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME);
-    }
-
-    @AfterEach
-    void afterEach() {
-        if (allowUnsafeParams != null) {
-            System.setProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME, allowUnsafeParams);
-        } else {
-            System.clearProperty(InputStepExecution.UNSAFE_PARAMETER_ALLOWED_PROPERTY_NAME);
-        }
     }
 
     /**
@@ -201,23 +193,23 @@ class InputStepTest {
     }
 
     @Test
-    public void dialogTitleHeader() throws Exception {
-        WorkflowJob p = j.jenkins.createProject(WorkflowJob.class, "p");
+    void dialogTitleHeader() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition(
                 "input id: 'InputX', message: '\\tAbout to archive 0 artifact(s).\\nProceed?\\n', parameters: [string(name: 'paths')]", true));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
-        j.waitForMessage("Input requested", b);
+        r.waitForMessage("Input requested", b);
 
         InputStepExecution execution = b.getAction(InputAction.class).getExecution("InputX");
         // Asserted directly as well as via the header because HtmlUnit trims header values.
         assertEquals("About to archive 0 artifact(s). Proceed?", execution.getDialogTitle());
 
-        JenkinsRule.WebClient wc = j.createWebClient();
+        JenkinsRule.WebClient wc = r.createWebClient();
         String title = wc.goTo(b.getUrl() + "input/InputX/dialog").getWebResponse().getResponseHeaderValue("X-Dialog-Title");
         assertEquals("About to archive 0 artifact(s). Proceed?", title);
 
         execution.doAbort();
-        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(b));
+        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
     }
 
     @Test
